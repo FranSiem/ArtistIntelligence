@@ -21,6 +21,14 @@ export default function App() {
           <img src={logo} alt="SoundMetrics Studio" className="nav-logo-img" />
           <span className="nav-tagline">AI-powered music analytics</span>
         </div>
+        <a
+          href="https://buymeacoffee.com/YOUR_USERNAME"
+          target="_blank"
+          rel="noopener noreferrer"
+          id="bmc-btn"
+        >
+          ☕ Support
+        </a>
       </nav>
 
       <div id="mobile-tabs">

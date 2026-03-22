@@ -1275,3 +1275,25 @@ body::after {
   0%   { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
+
+/* ─── Buy Me a Coffee ────────────────────────────────────────────────────── */
+#bmc-btn {
+  margin-left: auto;
+  padding: 7px 14px;
+  background: var(--accent-grad);
+  color: #fff;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 700;
+  font-family: var(--font-body);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: opacity 0.15s, transform 0.15s;
+  flex-shrink: 0;
+  box-shadow: 0 4px 16px rgba(108, 99, 255, 0.35);
+}
+
+#bmc-btn:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}

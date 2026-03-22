@@ -93,7 +93,7 @@ export function LandingPage({ onSelectArtist }: Props) {
                     </div>
                   </div>
                   <div className="artist-info">
-                    <div className="artist-name" style={{ color: '#0d0d14' }}>{artist.name}</div>
+                    <div className="artist-name">{artist.name}</div>
                     {genres.length > 0 && (
                       <div className="artist-genres">
                         {genres.map(g => (

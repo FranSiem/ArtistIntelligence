@@ -1066,3 +1066,212 @@ body::after {
     padding: 8px 16px 20px;
   }
 }
+
+/* ─── Landing Page ───────────────────────────────────────────────────────── */
+#landing {
+  min-height: 100vh;
+  background: #f4f4f6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+#landing-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  width: 100%;
+  max-width: 680px;
+  gap: 0;
+}
+
+#landing-logo {
+  height: 56px;
+  width: auto;
+  margin-bottom: 32px;
+}
+
+#landing-title {
+  font-family: var(--font-heading);
+  font-size: clamp(28px, 5vw, 44px);
+  font-weight: 800;
+  color: #0d0d14;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  margin-bottom: 16px;
+}
+
+#landing-sub {
+  font-size: 16px;
+  color: #666;
+  line-height: 1.7;
+  max-width: 520px;
+  margin-bottom: 36px;
+}
+
+#landing-search-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 12px;
+  padding: 6px 6px 6px 16px;
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.07);
+  gap: 8px;
+  transition: box-shadow 0.2s, border-color 0.2s;
+}
+
+#landing-search-row:focus-within {
+  border-color: #aaa;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.1);
+}
+
+.landing-search-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+  opacity: 0.4;
+}
+
+#landing-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-family: var(--font-body);
+  font-size: 15px;
+  color: #0d0d14;
+  background: transparent;
+  padding: 6px 0;
+}
+
+#landing-input::placeholder {
+  color: #aaa;
+}
+
+#landing-btn {
+  background: #3d3d4e;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 22px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: var(--font-body);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+
+#landing-btn:hover {
+  background: #2a2a38;
+}
+
+#landing-suggestions {
+  margin-top: 20px;
+  font-size: 13px;
+  color: #999;
+}
+
+.suggestion-chip {
+  background: none;
+  border: none;
+  color: #666;
+  font-size: 13px;
+  font-family: var(--font-body);
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  transition: color 0.15s, text-decoration-color 0.15s;
+}
+
+.suggestion-chip:hover {
+  color: #333;
+  text-decoration-color: #999;
+}
+
+@media (max-width: 480px) {
+  #landing-search-row {
+    flex-wrap: wrap;
+    padding: 10px 14px;
+    gap: 10px;
+  }
+
+  #landing-btn {
+    width: 100%;
+    padding: 12px;
+  }
+}
+
+/* ─── Landing Results ────────────────────────────────────────────────────── */
+#landing-results {
+  width: 100%;
+  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: fadeUp 0.25s ease both;
+}
+
+#landing-results .results-label {
+  color: #999;
+  margin-bottom: 4px;
+}
+
+.landing-artist-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+}
+
+.landing-artist-item:hover {
+  border-color: #bbb;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px);
+}
+
+.landing-genre-chip {
+  background: rgba(0, 0, 0, 0.05) !important;
+  border-color: rgba(0, 0, 0, 0.1) !important;
+  color: #666 !important;
+}
+
+.landing-error {
+  margin-top: 12px;
+  font-size: 13px;
+  color: #e05555;
+}
+
+/* ─── Analysis Skeleton ──────────────────────────────────────────────────── */
+#analysis-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 8px 0;
+  animation: fadeUp 0.3s ease both;
+}
+
+.skeleton-line {
+  height: 12px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, var(--surface-high) 25%, rgba(255,255,255,0.08) 50%, var(--surface-high) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+}
+
+.skeleton-line.wide  { width: 100%; }
+.skeleton-line.medium { width: 72%; }
+.skeleton-line.narrow { width: 48%; }
+
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}

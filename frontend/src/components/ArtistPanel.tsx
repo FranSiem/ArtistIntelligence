@@ -1,18 +1,34 @@
-import { useRef, type KeyboardEvent } from 'react'
+import { useRef, useEffect, type KeyboardEvent } from 'react'
 import { marked } from 'marked'
-import type { ArtistContext } from '../types'
+import type { Artist, ArtistContext } from '../types'
 import { useArtistSearch } from '../hooks/useArtistSearch'
 import { useAnalysisStream } from '../hooks/useAnalysisStream'
 import { ArtistItem } from './ArtistItem'
 
 interface Props {
   onArtistContext: (ctx: ArtistContext) => void
+  initialArtist?: Artist
 }
 
-export function ArtistPanel({ onArtistContext }: Props) {
+export function ArtistPanel({ onArtistContext, initialArtist }: Props) {
   const searchRef = useRef<HTMLInputElement>(null)
+  const analysisRef = useRef<HTMLDivElement>(null)
   const { results, isLoading, error, search, clear } = useArtistSearch()
   const { analysisText, status, isAnalyzing, analyze } = useAnalysisStream(onArtistContext)
+
+  // Update analysis content directly via DOM to avoid React re-render flicker
+  useEffect(() => {
+    if (analysisRef.current && analysisText && !isAnalyzing) {
+      analysisRef.current.innerHTML = marked.parse(analysisText) as string
+    }
+  }, [analysisText, isAnalyzing])
+
+  useEffect(() => {
+    if (initialArtist) {
+      if (searchRef.current) searchRef.current.value = initialArtist.name
+      analyze(initialArtist.cm_id)
+    }
+  }, [])
 
   function doSearch() {
     search(searchRef.current?.value ?? '')
@@ -22,7 +38,6 @@ export function ArtistPanel({ onArtistContext }: Props) {
     if (e.key === 'Enter') doSearch()
   }
 
-  const hasAnalysis = analysisText.length > 0
   const hasResults = results.length > 0
 
   return (
@@ -74,7 +89,7 @@ export function ArtistPanel({ onArtistContext }: Props) {
       </div>
 
       <div id="analysis-area">
-        {!hasAnalysis && (
+        {!analysisText && !isAnalyzing && (
           <div id="analysis-placeholder">
             <div className="placeholder-icon">🎼</div>
             <div className="placeholder-title">No artist loaded</div>
@@ -83,12 +98,21 @@ export function ArtistPanel({ onArtistContext }: Props) {
             </div>
           </div>
         )}
-        {hasAnalysis && (
-          <div
-            id="analysis-content"
-            dangerouslySetInnerHTML={{ __html: marked.parse(analysisText) as string }}
-          />
+        {isAnalyzing && (
+          <div id="analysis-skeleton">
+            <div className="skeleton-line wide" />
+            <div className="skeleton-line medium" />
+            <div className="skeleton-line wide" />
+            <div className="skeleton-line narrow" />
+            <div className="skeleton-line wide" />
+            <div className="skeleton-line medium" />
+          </div>
         )}
+        <div
+          id="analysis-content"
+          ref={analysisRef}
+          style={{ display: analysisText && !isAnalyzing ? 'block' : 'none' }}
+        />
       </div>
     </div>
   )

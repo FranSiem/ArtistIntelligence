@@ -23,5 +23,7 @@ export function useArtistSearch() {
     }
   }
 
-  return { results, isLoading, error, search }
+  function clear() { setResults([]) }
+
+  return { results, isLoading, error, search, clear }
 }

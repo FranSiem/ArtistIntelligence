@@ -41,14 +41,28 @@ export function ChatPanel({ artistContext, onClearContext }: Props) {
     }
   }
 
+  const hasMessages = messages.length > 0
+
   return (
     <div className="panel" id="chat-panel">
       <div className="panel-header">
-        <h2>Chat</h2>
-        <p>Ask anything — use the right panel to load an artist first</p>
+        <div className="panel-title">
+          <span className="panel-title-icon">💬</span>
+          Chat
+        </div>
+        <p className="panel-subtitle">Ask anything — load an artist first for deeper analysis</p>
       </div>
 
       <div id="chat-messages">
+        {!hasMessages && (
+          <div className="chat-empty-state">
+            <div className="chat-empty-icon">✨</div>
+            <div className="chat-empty-title">Start a conversation</div>
+            <div className="chat-empty-sub">
+              Search for an artist in the right panel, then ask anything about them.
+            </div>
+          </div>
+        )}
         {messages.map((msg, i) => (
           <MessageBubble
             key={i}
@@ -61,8 +75,9 @@ export function ChatPanel({ artistContext, onClearContext }: Props) {
 
       {artistContext && (
         <div id="context-banner" className="active">
-          <span>Artist context: {artistContext.name}</span>
-          <span id="context-clear" onClick={onClearContext}>clear context</span>
+          <span id="context-banner-icon">🎵</span>
+          <span className="label">Context: <strong>{artistContext.name}</strong></span>
+          <span id="context-clear" onClick={onClearContext}>clear</span>
         </div>
       )}
 
@@ -75,8 +90,14 @@ export function ChatPanel({ artistContext, onClearContext }: Props) {
           onInput={autoResize}
           onKeyDown={handleKeyDown}
         />
-        <button className="btn" id="send-btn" onClick={handleSend} disabled={isStreaming}>
-          Send
+        <button
+          className="btn-icon"
+          id="send-btn"
+          onClick={handleSend}
+          disabled={isStreaming}
+          title="Send (Enter)"
+        >
+          ➤
         </button>
       </div>
     </div>

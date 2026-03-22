@@ -7,7 +7,7 @@ cleanup() {
 trap cleanup EXIT
 
 source .venv/bin/activate
-uvicorn app.main:app --port 8000 --workers 1 --reload &
+.venv/bin/uvicorn app.main:app --port 8000 --workers 1 --reload &
 
 cd frontend && npm run dev &
 

@@ -23,7 +23,7 @@ async def stream_chat(
 ) -> AsyncIterator[str]:
     kwargs: dict = {
         "model": config.ANTHROPIC_MODEL,
-        "max_tokens": 1024,
+        "max_tokens": 4096,
         "messages": messages,
     }
     if system:
@@ -41,7 +41,7 @@ async def stream_analysis(artist_name: str, summary: str) -> AsyncIterator[str]:
     )
     async with get_client().messages.stream(
         model=config.ANTHROPIC_MODEL,
-        max_tokens=1024,
+        max_tokens=4096,
         system=ANALYSIS_SYSTEM_PROMPT,
         messages=[{"role": "user", "content": user_message}],
     ) as stream:

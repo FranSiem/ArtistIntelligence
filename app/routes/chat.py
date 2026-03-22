@@ -18,6 +18,7 @@ class Message(BaseModel):
 class ArtistContext(BaseModel):
     name: str
     analysis: str
+    summary: str = ""
 
 
 class ChatRequest(BaseModel):
@@ -29,8 +30,11 @@ async def _chat_stream(request: ChatRequest):
     system = None
     if request.artist_context:
         system = (
-            f"The user just reviewed an analysis for {request.artist_context.name}: "
-            f"{request.artist_context.analysis}"
+            f"You are advising on the artist: {request.artist_context.name}.\n\n"
+            f"RAW CHARTMETRIC DATA:\n{request.artist_context.summary}\n\n"
+            f"AI ANALYSIS ALREADY SHOWN TO USER:\n{request.artist_context.analysis}\n\n"
+            f"Use the raw data to give specific, grounded answers to follow-up questions. "
+            f"Reference actual metrics when helpful. Be direct and actionable."
         )
 
     messages = [m.model_dump() for m in request.messages]

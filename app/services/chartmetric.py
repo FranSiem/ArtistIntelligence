@@ -60,11 +60,20 @@ async def gather_artist_data(cm_id: int) -> dict:
 
     results = await asyncio.gather(
         _run(cm().artist.metadata, cm_id),
+        # Spotify
         _run(cm().artist.fanmetrics, cmid=cm_id, start_date=d90, end_date=today, dsrc="spotify", valueCol="followers"),
         _run(cm().artist.fanmetrics, cmid=cm_id, start_date=d90, end_date=today, dsrc="spotify", valueCol="listeners"),
         _run(cm().artist.playlists, cmid=cm_id, dsrc="spotify", start_date=d30, status="current"),
         _run(cm().artist.charts, chart_type="spotify_top_daily", cmid=cm_id, start_date=d30, end_date=today),
         _run(cm().artist.related, cmid=cm_id, limit=10),
+        # Streaming overview
+        _run(cm().artist.fanmetrics, cmid=cm_id, start_date=d90, end_date=today, dsrc="applemusic", valueCol="listeners"),
+        _run(cm().artist.fanmetrics, cmid=cm_id, start_date=d90, end_date=today, dsrc="deezer", valueCol="followers"),
+        _run(cm().artist.fanmetrics, cmid=cm_id, start_date=d90, end_date=today, dsrc="youtube_channel", valueCol="subscribers"),
+        # Socials
+        _run(cm().artist.fanmetrics, cmid=cm_id, start_date=d90, end_date=today, dsrc="instagram", valueCol="followers"),
+        _run(cm().artist.fanmetrics, cmid=cm_id, start_date=d90, end_date=today, dsrc="tiktok", valueCol="followers"),
+        _run(cm().artist.fanmetrics, cmid=cm_id, start_date=d90, end_date=today, dsrc="youtube_channel", valueCol="views"),
     )
 
     return {
@@ -74,6 +83,12 @@ async def gather_artist_data(cm_id: int) -> dict:
         "playlists": results[3],
         "charts": results[4],
         "related": results[5],
+        "apple_listeners": results[6],
+        "deezer_followers": results[7],
+        "youtube_subscribers": results[8],
+        "instagram_followers": results[9],
+        "tiktok_followers": results[10],
+        "youtube_views": results[11],
     }
 
 
@@ -175,3 +190,39 @@ def summarize_for_ai(raw: dict) -> str:
         parts.append(f"Related artists: {', '.join(names)}")
 
     return "\n".join(parts)
+
+
+def _extract_series(raw_data: Any, value_key: str) -> list[dict]:
+    """Extract [{date, value}] from a fanmetrics response."""
+    if not raw_data:
+        return []
+    items = raw_data if isinstance(raw_data, list) else raw_data.get("data", [])
+    result = []
+    for item in items:
+        if not item:
+            continue
+        date_val = item.get("timestp") or item.get("date") or item.get("timestamp")
+        value = item.get(value_key) or item.get("value") or 0
+        if date_val and value is not None:
+            result.append({"date": str(date_val)[:10], "value": value})
+    return result
+
+
+def extract_charts_data(raw: dict) -> dict:
+    """Extract time-series data for frontend charts."""
+    return {
+        "spotify": {
+            "followers": _extract_series(raw.get("followers"), "followers"),
+            "listeners": _extract_series(raw.get("listeners"), "listeners"),
+        },
+        "streaming": {
+            "apple_listeners": _extract_series(raw.get("apple_listeners"), "listeners"),
+            "deezer_followers": _extract_series(raw.get("deezer_followers"), "followers"),
+            "youtube_subscribers": _extract_series(raw.get("youtube_subscribers"), "subscribers"),
+        },
+        "socials": {
+            "instagram_followers": _extract_series(raw.get("instagram_followers"), "followers"),
+            "tiktok_followers": _extract_series(raw.get("tiktok_followers"), "followers"),
+            "youtube_views": _extract_series(raw.get("youtube_views"), "views"),
+        },
+    }

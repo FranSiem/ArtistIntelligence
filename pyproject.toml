@@ -17,6 +17,9 @@ dependencies = [
 [project.scripts]
 chartmetric-mcp = "server:mcp"
 
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

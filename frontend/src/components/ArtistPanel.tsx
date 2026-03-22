@@ -74,7 +74,7 @@ export function ArtistPanel({ onArtistContext, initialArtist }: Props) {
         {!isLoading && results.map(a => (
           <ArtistItem key={a.cm_id} artist={a} onClick={(artist) => { clear(); analyze(artist) }} />
         ))}
-        {!isLoading && !error && !hasResults && searchRef.current?.value && (
+        {!isLoading && !error && !hasResults && searchRef.current?.value && !isAnalyzing && !analysisText && (
           <span className="dim-text">No results found.</span>
         )}
       </div>

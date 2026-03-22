@@ -34,7 +34,7 @@ async def _event_stream(cm_id: int):
             full_analysis.append(token)
             yield f"data: {json.dumps({'type': 'token', 'text': token})}\n\n"
 
-        yield f"data: {json.dumps({'type': 'done', 'artist_name': artist_name})}\n\n"
+        yield f"data: {json.dumps({'type': 'done', 'artist_name': artist_name, 'summary': summary})}\n\n"
 
     except Exception as e:
         yield f"data: {json.dumps({'type': 'error', 'text': str(e)})}\n\n"

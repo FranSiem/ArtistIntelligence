@@ -807,3 +807,181 @@ def spotify_get_track_audio_features(
     else:
         # Batch endpoint returns {"audio_features": [...]}
         return _sp_get("/audio-features", params={"ids": ",".join(ids)})
+
+
+# ---------------------------------------------------------------------------
+# Last.fm API (Layer 1 — public listening data, no OAuth required)
+# ---------------------------------------------------------------------------
+# Auth is a single API key passed as a query parameter on every request.
+# All calls hit one base URL with a 'method' parameter selecting the endpoint.
+# No token caching needed — the key never expires.
+# ---------------------------------------------------------------------------
+
+_LFM_BASE = "https://ws.audioscrobbler.com/2.0/"
+
+
+def _lfm_get(method: str, params: dict | None = None) -> dict:
+    """Make a GET request to the Last.fm API and return parsed JSON.
+
+    Reads LASTFM_API_KEY from env on every call (cheap — no network hit).
+    Raises RuntimeError if the key is not set, HTTPStatusError on API errors.
+    """
+    api_key = os.environ.get("LASTFM_API_KEY")
+    if not api_key:
+        raise RuntimeError(
+            "LASTFM_API_KEY env var must be set. "
+            "Generate a free key at https://www.last.fm/api/account/create"
+        )
+    merged = {"method": method, "api_key": api_key, "format": "json"}
+    if params:
+        merged.update({k: v for k, v in params.items() if v is not None})
+    with httpx.Client(timeout=30) as client:
+        resp = client.get(_LFM_BASE, params=merged)
+    resp.raise_for_status()
+    return resp.json()
+
+
+# ---- Search ----------------------------------------------------------------
+
+@mcp.tool()
+def lastfm_search_artist(
+    artist: str,
+    limit: int = 10,
+    page: int = 1,
+) -> dict:
+    """Search Last.fm for artists by name using fuzzy matching.
+
+    Use this as the first step in the public search flow when the exact
+    canonical artist name is unknown — it tolerates minor spelling differences
+    and returns a ranked list of matches with listener counts.
+
+    Args:
+        artist: Artist name to search for (fuzzy — tolerates misspellings)
+        limit: Number of results to return (default 10)
+        page: Page number for pagination (default 1)
+    """
+    return _lfm_get("artist.search", {"artist": artist, "limit": limit, "page": page})
+
+
+# ---- Artist ----------------------------------------------------------------
+
+@mcp.tool()
+def lastfm_get_artist_info(
+    artist: str,
+    mbid: str | None = None,
+    lang: str = "en",
+) -> dict:
+    """Get full Last.fm artist profile — total listeners, total scrobbles,
+    biography, top tags (community genre/mood labels), and a summary of
+    similar artists.
+
+    Scrobble count reflects cumulative active plays across all Last.fm users
+    and is independent of Spotify — a strong signal for genuine fan engagement.
+    Top tags are community-applied and reveal how listeners actually categorise
+    the artist (genre, mood, era, geography).
+
+    Use this as the canonical name confirmation step before calling other
+    lastfm_* tools — the returned 'name' field is the exact spelling the
+    API expects.
+
+    Args:
+        artist: Artist name (use lastfm_search_artist first if unsure of
+                exact spelling)
+        mbid: MusicBrainz ID for disambiguation (optional — use when multiple
+              artists share the same name)
+        lang: Language code for biography text (default 'en')
+    """
+    return _lfm_get("artist.getInfo", {"artist": artist, "mbid": mbid, "lang": lang})
+
+
+@mcp.tool()
+def lastfm_get_artist_top_tracks(
+    artist: str,
+    mbid: str | None = None,
+    limit: int = 20,
+    page: int = 1,
+) -> dict:
+    """Get an artist's top tracks on Last.fm ranked by scrobble count.
+
+    Comparing this ranking against Spotify's top tracks reveals which songs
+    resonate most with active, engaged listeners vs casual streamers.
+
+    Args:
+        artist: Artist name (exact spelling — use lastfm_get_artist_info to
+                confirm canonical name)
+        mbid: MusicBrainz ID for disambiguation (optional)
+        limit: Number of tracks to return (default 20)
+        page: Page number for pagination (default 1)
+    """
+    return _lfm_get("artist.getTopTracks", {"artist": artist, "mbid": mbid, "limit": limit, "page": page})
+
+
+@mcp.tool()
+def lastfm_get_artist_top_albums(
+    artist: str,
+    mbid: str | None = None,
+    limit: int = 10,
+    page: int = 1,
+) -> dict:
+    """Get an artist's top albums on Last.fm ranked by scrobble count.
+
+    Args:
+        artist: Artist name (exact spelling — use lastfm_get_artist_info to
+                confirm canonical name)
+        mbid: MusicBrainz ID for disambiguation (optional)
+        limit: Number of albums to return (default 10)
+        page: Page number for pagination (default 1)
+    """
+    return _lfm_get("artist.getTopAlbums", {"artist": artist, "mbid": mbid, "limit": limit, "page": page})
+
+
+@mcp.tool()
+def lastfm_get_artist_similar(
+    artist: str,
+    mbid: str | None = None,
+    limit: int = 20,
+) -> dict:
+    """Get artists similar to the given artist according to Last.fm's
+    community co-listening data.
+
+    Last.fm similarity is driven by shared listener behaviour (fans who listen
+    to artist A also listen to artist B) rather than algorithmic audio
+    fingerprinting, giving a complementary perspective to
+    spotify_get_artist_related_artists for Artist Index benchmarking.
+
+    Each result includes a 0.0–1.0 match score.
+
+    Args:
+        artist: Artist name (exact spelling — use lastfm_get_artist_info to
+                confirm canonical name)
+        mbid: MusicBrainz ID for disambiguation (optional)
+        limit: Number of similar artists to return (default 20)
+    """
+    return _lfm_get("artist.getSimilar", {"artist": artist, "mbid": mbid, "limit": limit})
+
+
+# ---- Track -----------------------------------------------------------------
+
+@mcp.tool()
+def lastfm_get_track_info(
+    track: str,
+    artist: str,
+    mbid: str | None = None,
+    username: str | None = None,
+) -> dict:
+    """Get Last.fm data for a specific track — listener count, scrobble count,
+    community tags, and wiki summary.
+
+    Track-level scrobble count is a strong indicator of replay value and deep
+    fan engagement — useful for identifying which tracks in a release cycle are
+    building a genuine audience.
+
+    Args:
+        track: Track title (exact spelling)
+        artist: Artist name (exact spelling — use lastfm_get_artist_info to
+                confirm canonical name)
+        mbid: MusicBrainz track ID for disambiguation (optional)
+        username: Last.fm username to include that user's play count in the
+                  response (optional — rarely needed in pipeline context)
+    """
+    return _lfm_get("track.getInfo", {"track": track, "artist": artist, "mbid": mbid, "username": username})

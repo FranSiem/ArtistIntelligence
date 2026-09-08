@@ -1,61 +1,107 @@
 import { useState } from 'react'
-import type { Artist, ArtistContext } from './types'
-import { ChatPanel } from './components/ChatPanel'
-import { ArtistPanel } from './components/ArtistPanel'
+import type { Page, Artist, ArtistContext } from './types'
 import { LandingPage } from './components/LandingPage'
-import logo from './assets/logo.png'
+import { SignInPage } from './components/SignInPage'
+import { SignUpPage } from './components/SignUpPage'
+import { DataSourcesPanel } from './components/DataSourcesPanel'
+import { ConversationPanel } from './components/ConversationPanel'
+import { ReportBuilderPanel } from './components/ReportBuilderPanel'
+import logo from './assets/Sound Metrics Studio-Final-01.png'
 
 export default function App() {
-  const [artistContext, setArtistContext] = useState<ArtistContext | null>(null)
-  const [activeTab, setActiveTab] = useState<'artist' | 'chat'>('artist')
+  const [page, setPage] = useState<Page>('landing')
   const [selectedArtist, setSelectedArtist] = useState<Artist | null>(null)
+  const [artistContext, setArtistContext] = useState<ArtistContext | null>(null)
 
-  if (!selectedArtist) {
-    return <LandingPage onSelectArtist={(artist) => setSelectedArtist(artist)} />
+  // ── Navigation helpers ─────────────────────────────────────────────────────
+  function goToLanding() {
+    setPage('landing')
+    setSelectedArtist(null)
+    setArtistContext(null)
   }
 
-  return (
-    <div id="app-shell">
-      <nav id="nav-bar">
-        <div className="nav-logo" style={{ cursor: 'pointer' }} onClick={() => setSelectedArtist(null)}>
-          <img src={logo} alt="SoundMetrics Studio" className="nav-logo-img" />
-          <span className="nav-tagline">AI-powered music analytics</span>
-        </div>
-        <a
-          href="https://buymeacoffee.com/YOUR_USERNAME"
-          target="_blank"
-          rel="noopener noreferrer"
-          id="bmc-btn"
-        >
-          ☕ Support
-        </a>
-      </nav>
+  function handleSelectArtist(artist: Artist) {
+    setSelectedArtist(artist)
+    setArtistContext(null)
+    setPage('conversation')
+  }
 
-      <div id="mobile-tabs">
+  function handleArtistContext(ctx: ArtistContext) {
+    setArtistContext(ctx)
+  }
+
+  // ── Shared nav bar (used on conversation page) ─────────────────────────────
+  const AppNav = () => (
+    <nav id="nav-bar">
+      <div className="nav-left" onClick={goToLanding}>
+        <img src={logo} alt="Sound Metrics Studio" className="nav-logo-img" />
+        <div className="nav-wordmark">
+          <span className="nav-wordmark-title">Artist Intelligence</span>
+          <span className="nav-wordmark-sub">Powered by Sound Metrics Studio</span>
+        </div>
+      </div>
+      <div className="nav-right">
+        {selectedArtist && (
+          <span className="nav-artist-name">{selectedArtist.name}</span>
+        )}
         <button
-          className={`mobile-tab ${activeTab === 'artist' ? 'active' : ''}`}
-          onClick={() => setActiveTab('artist')}
+          className="btn btn-secondary btn-sm"
+          onClick={() => setPage('signin')}
         >
-          🎤 Artist
+          Sign in
         </button>
         <button
-          className={`mobile-tab ${activeTab === 'chat' ? 'active' : ''}`}
-          onClick={() => setActiveTab('chat')}
+          className="btn btn-primary btn-sm"
+          onClick={() => setPage('signup')}
         >
-          💬 Chat
+          Get started free
         </button>
       </div>
+    </nav>
+  )
 
-      <div id="app-grid">
-        <div className={`panel-wrapper ${activeTab === 'artist' ? 'tab-active' : ''}`}>
-          <ArtistPanel
-            onArtistContext={(ctx) => { setArtistContext(ctx); setActiveTab('chat') }}
-            initialArtist={selectedArtist}
-          />
-        </div>
-        <div className={`panel-wrapper ${activeTab === 'chat' ? 'tab-active' : ''}`}>
-          <ChatPanel artistContext={artistContext} onClearContext={() => setArtistContext(null)} />
-        </div>
+  // ── Page routing ───────────────────────────────────────────────────────────
+  if (page === 'landing') {
+    return (
+      <LandingPage
+        onSelectArtist={handleSelectArtist}
+        onSignIn={() => setPage('signin')}
+        onSignUp={() => setPage('signup')}
+      />
+    )
+  }
+
+  if (page === 'signin') {
+    return (
+      <SignInPage
+        onBack={goToLanding}
+        onSwitchToSignUp={() => setPage('signup')}
+        onSignIn={() => setPage('landing')}
+      />
+    )
+  }
+
+  if (page === 'signup') {
+    return (
+      <SignUpPage
+        onBack={goToLanding}
+        onSwitchToSignIn={() => setPage('signin')}
+        onSignUp={() => setPage('landing')}
+      />
+    )
+  }
+
+  // ── Conversation page (three-panel) ───────────────────────────────────────
+  return (
+    <div id="app-shell">
+      <AppNav />
+      <div id="app-body">
+        <DataSourcesPanel />
+        <ConversationPanel
+          artist={selectedArtist}
+          onArtistContext={handleArtistContext}
+        />
+        <ReportBuilderPanel artistContext={artistContext} />
       </div>
     </div>
   )

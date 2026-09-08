@@ -6,6 +6,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from app.services import anthropic_client
+from app.services import session_store
 
 router = APIRouter()
 
@@ -18,7 +19,7 @@ class Message(BaseModel):
 class ArtistContext(BaseModel):
     name: str
     analysis: str
-    summary: str = ""
+    session_id: str
 
 
 class ChatRequest(BaseModel):
@@ -28,14 +29,30 @@ class ChatRequest(BaseModel):
 
 async def _chat_stream(request: ChatRequest):
     system = None
+
     if request.artist_context:
-        system = (
-            f"You are advising on the artist: {request.artist_context.name}.\n\n"
-            f"RAW CHARTMETRIC DATA:\n{request.artist_context.summary}\n\n"
-            f"AI ANALYSIS ALREADY SHOWN TO USER:\n{request.artist_context.analysis}\n\n"
-            f"Use the raw data to give specific, grounded answers to follow-up questions. "
-            f"Reference actual metrics when helpful. Be direct and actionable."
-        )
+        ctx = request.artist_context
+
+        # Look up the summary server-side — never trust the client to send it
+        session = session_store.get_session(ctx.session_id)
+
+        if session:
+            # Full grounded context: server-stored summary + AI analysis shown to user
+            system = (
+                f"You are advising on the artist: {session['artist_name']}.\n\n"
+                f"RAW CHARTMETRIC DATA:\n{session['summary']}\n\n"
+                f"AI ANALYSIS ALREADY SHOWN TO USER:\n{ctx.analysis}\n\n"
+                f"Use the raw data to give specific, grounded answers to follow-up questions. "
+                f"Reference actual metrics when helpful. Be direct and actionable."
+            )
+        else:
+            # Session not found (expired or invalid) — fall back to analysis text only
+            system = (
+                f"You are advising on the artist: {ctx.name}.\n\n"
+                f"AI ANALYSIS ALREADY SHOWN TO USER:\n{ctx.analysis}\n\n"
+                f"Answer follow-up questions based on the analysis above. "
+                f"Be direct and actionable."
+            )
 
     messages = [m.model_dump() for m in request.messages]
 

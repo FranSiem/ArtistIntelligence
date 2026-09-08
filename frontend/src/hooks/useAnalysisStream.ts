@@ -42,7 +42,7 @@ export function useAnalysisStream(onComplete: (ctx: ArtistContext) => void) {
               setAnalysisText(buffer)
             } else if (obj.type === 'done') {
               setStatus('')
-              onComplete({ name: obj.artist_name, analysis: buffer, summary: obj.summary })
+              onComplete({ name: obj.artist_name, analysis: buffer, session_id: obj.session_id })
             } else if (obj.type === 'error') {
               setStatus('')
               setAnalysisText(`**Error:** ${obj.text}`)

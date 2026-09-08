@@ -35,6 +35,14 @@ const LIVE_SOURCES: DataSource[] = [
     status: 'pending',
     detail: 'Pending setup',
   },
+  {
+    id: 'lastfm',
+    icon: '🎵',
+    label: 'Last.fm',
+    type: 'live',
+    status: 'connected',
+    detail: 'Connected',
+  },
 ]
 
 const MANUAL_SOURCES: DataSource[] = [

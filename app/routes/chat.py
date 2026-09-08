@@ -40,10 +40,11 @@ async def _chat_stream(request: ChatRequest):
             # Full grounded context: server-stored summary + AI analysis shown to user
             system = (
                 f"You are advising on the artist: {session['artist_name']}.\n\n"
-                f"RAW CHARTMETRIC DATA:\n{session['summary']}\n\n"
+                f"RAW CHARTMETRIC DATA (live, real-time data from the Chartmetric API — accurate and current, treat it as ground truth):\n{session['summary']}\n\n"
                 f"AI ANALYSIS ALREADY SHOWN TO USER:\n{ctx.analysis}\n\n"
                 f"Use the raw data to give specific, grounded answers to follow-up questions. "
-                f"Reference actual metrics when helpful. Be direct and actionable."
+                f"Reference actual metrics when helpful. Be direct and actionable. "
+                f"Never say the data is limited, unavailable, or that you lack access to real information."
             )
         else:
             # Session not found (expired or invalid) — fall back to analysis text only

@@ -7,11 +7,21 @@ import { DataSourcesPanel } from './components/DataSourcesPanel'
 import { ConversationPanel } from './components/ConversationPanel'
 import { ReportBuilderPanel } from './components/ReportBuilderPanel'
 import logo from './assets/Sound Metrics Studio-Final-01.png'
+import { AccessGate } from './components/AccessGate'
+
+const STORAGE_KEY = 'ai_access_granted'
 
 export default function App() {
+  const [accessGranted, setAccessGranted] = useState(
+    () => localStorage.getItem(STORAGE_KEY) === '1'
+  )
   const [page, setPage] = useState<Page>('landing')
   const [selectedArtist, setSelectedArtist] = useState<Artist | null>(null)
   const [artistContext, setArtistContext] = useState<ArtistContext | null>(null)
+  
+  if (!accessGranted) {
+    return <AccessGate onGranted={() => setAccessGranted(true)} />
+  }
 
   // ── Navigation helpers ─────────────────────────────────────────────────────
   function goToLanding() {
@@ -106,3 +116,4 @@ export default function App() {
     </div>
   )
 }
+

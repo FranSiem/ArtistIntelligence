@@ -1,0 +1,43 @@
+{% extends "admin/base.html" %}
+{% block title %}{{ row.artist_name }}{% endblock %}
+
+{% block content %}
+<div class="flex mb-16" style="gap:12px; align-items:center;">
+  <a href="/admin/dashboard" class="btn btn-ghost btn-sm">← Back</a>
+  <span style="color:#9ca3af; font-size:13px;">{{ row.key }}</span>
+</div>
+
+<div class="flex justify-between mb-24">
+  <div>
+    <h1>{{ row.artist_name }}</h1>
+    <p class="subtitle">
+      CM ID: {{ row.cm_id }} &nbsp;·&nbsp;
+      {{ row.ts[:19] | replace("T", " ") }} UTC
+    </p>
+  </div>
+  <div class="flex" style="gap:8px; align-items:flex-start;">
+    <a href="/admin/download/{{ row.encoded_key }}/json" class="btn btn-primary btn-sm">⬇ JSON</a>
+    <a href="/admin/download/{{ row.encoded_key }}/csv"  class="btn btn-pink btn-sm">⬇ CSV</a>
+    <form method="POST" action="/admin/delete/{{ row.encoded_key }}" style="display:inline;"
+          onsubmit="return confirm('Delete this record permanently?')">
+      <button type="submit" class="btn btn-danger">Delete</button>
+    </form>
+  </div>
+</div>
+
+<!-- Summary -->
+<div class="card mb-24">
+  <h2 style="font-size:15px; font-weight:700; color:#1f3864; margin-bottom:14px;">
+    📝 summarize_for_ai() output
+  </h2>
+  <pre style="background:#f8fafc; color:#1e293b; border:1px solid #e2e5ec;">{{ row.summary }}</pre>
+</div>
+
+<!-- Raw JSON -->
+<div class="card">
+  <h2 style="font-size:15px; font-weight:700; color:#1f3864; margin-bottom:14px;">
+    🔍 Raw Chartmetric API response
+  </h2>
+  <pre>{{ raw_pretty }}</pre>
+</div>
+{% endblock %}

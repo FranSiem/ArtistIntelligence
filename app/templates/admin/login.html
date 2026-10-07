@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Login — Artist Intelligence</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #f7f8fa;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .card {
+      background: #fff;
+      border: 1px solid #e2e5ec;
+      border-radius: 16px;
+      padding: 40px;
+      width: 100%;
+      max-width: 380px;
+      box-shadow: 0 4px 24px rgba(0,0,0,.08);
+    }
+    .logo-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 28px;
+    }
+    .ai-badge {
+      width: 36px; height: 36px;
+      background: #1f3864; color: #fff;
+      border-radius: 8px; font-weight: 800; font-size: 14px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .brand { font-size: 15px; font-weight: 700; color: #1f3864; }
+    .brand-sub { font-size: 11px; color: #9ca3af; }
+    h1 { font-size: 22px; font-weight: 800; color: #1f3864; margin-bottom: 6px; }
+    p { font-size: 14px; color: #6b7280; margin-bottom: 24px; }
+    label { display: block; font-size: 13px; font-weight: 600; color: #4b5563; margin-bottom: 6px; }
+    input[type=password] {
+      width: 100%; padding: 11px 14px;
+      border: 1.5px solid #e2e5ec; border-radius: 8px;
+      font-size: 15px; outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    input[type=password]:focus {
+      border-color: #e91e8c;
+      box-shadow: 0 0 0 3px rgba(233,30,140,.1);
+    }
+    .form-group { margin-bottom: 20px; }
+    button {
+      width: 100%; padding: 12px;
+      background: #1f3864; color: #fff;
+      border: none; border-radius: 8px;
+      font-size: 15px; font-weight: 700;
+      cursor: pointer; transition: background 0.15s;
+    }
+    button:hover { background: #2a4a80; }
+    .error {
+      background: #fef2f2; color: #dc2626;
+      border: 1px solid #fca5a5;
+      border-radius: 8px; padding: 10px 14px;
+      font-size: 13px; margin-bottom: 16px;
+    }
+    .notice {
+      text-align: center;
+      font-size: 12px;
+      color: #9ca3af;
+      margin-top: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo-row">
+      <div class="ai-badge">AI</div>
+      <div>
+        <div class="brand">Artist Intelligence</div>
+        <div class="brand-sub">Sound Metrics Studio — Internal</div>
+      </div>
+    </div>
+    <h1>Admin portal</h1>
+    <p>SMS internal use only. Enter your admin password to continue.</p>
+
+    {% if error %}
+    <div class="error">{{ error }}</div>
+    {% endif %}
+
+    <form method="POST" action="/admin/login">
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" autofocus autocomplete="current-password" />
+      </div>
+      <button type="submit">Sign in</button>
+    </form>
+    <p class="notice">This portal is not accessible to artists or the public.</p>
+  </div>
+</body>
+</html>

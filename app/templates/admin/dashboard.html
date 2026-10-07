@@ -1,0 +1,51 @@
+{% extends "admin/base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="flex justify-between mb-24">
+  <div>
+    <h1>Search log</h1>
+    <p class="subtitle">Every artist analysis run through the pipeline — most recent first.</p>
+  </div>
+</div>
+
+<div class="stat-row">
+  <div class="stat-card">
+    <div class="stat-value">{{ searches | length }}</div>
+    <div class="stat-label">Searches shown</div>
+  </div>
+</div>
+
+<div class="card" style="padding: 0; overflow: hidden;">
+  {% if searches %}
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Timestamp</th>
+        <th>Artist</th>
+        <th>CM ID</th>
+        <th style="text-align:right;">Actions</th>
+      </tr>    </thead>
+    <tbody>
+      {% for row in searches %}
+      <tr>
+        <td class="mono">{{ row.ts[:19] | replace("T", " ") }}</td>
+        <td><strong>{{ row.artist_name }}</strong></td>
+        <td class="mono">{{ row.cm_id }}</td>
+        <td style="text-align:right;">
+          <a href="/admin/search/{{ row.encoded_key }}" class="btn btn-ghost btn-sm">View</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div style="padding: 48px; text-align: center; color: #9ca3af;">
+    <div style="font-size: 32px; margin-bottom: 12px;">📭</div>
+    <div style="font-weight: 600; color: #6b7280;">No searches yet</div>
+    <div style="font-size: 13px; margin-top: 4px;">Searches will appear here once artists are analysed.</div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}Admin{% endblock %} — Artist Intelligence</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #f7f8fa;
+      color: #111827;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    a { color: #1f3864; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* Nav */
+    nav {
+      background: #1f3864;
+      color: #fff;
+      padding: 0 24px;
+      height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    nav .brand { font-weight: 700; font-size: 15px; letter-spacing: -0.2px; }
+    nav .brand span { color: #e91e8c; }
+    nav .nav-right { display: flex; gap: 16px; align-items: center; font-size: 13px; }
+    nav .nav-right a { color: rgba(255,255,255,0.75); }
+    nav .nav-right a:hover { color: #fff; text-decoration: none; }
+
+    /* Layout */
+    .page { max-width: 1100px; margin: 0 auto; padding: 32px 24px; }
+    h1 { font-size: 22px; font-weight: 800; color: #1f3864; margin-bottom: 4px; }
+    .subtitle { color: #6b7280; font-size: 13px; margin-bottom: 28px; }
+
+    /* Cards */
+    .card {
+      background: #fff;
+      border: 1px solid #e2e5ec;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+
+    /* Table */
+    table { width: 100%; border-collapse: collapse; }
+    thead th {
+      text-align: left;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #9ca3af;
+      padding: 0 12px 10px;
+      border-bottom: 1px solid #e2e5ec;
+    }
+    tbody tr { border-bottom: 1px solid #f3f4f6; transition: background 0.1s; }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: #f9fafb; }
+    tbody td { padding: 12px; vertical-align: middle; }
+    tbody td.mono { font-family: monospace; font-size: 12px; color: #6b7280; }
+
+    /* Badges */
+    .badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 3px 8px; border-radius: 99px;
+      font-size: 11px; font-weight: 600; white-space: nowrap;
+    }
+    .badge-green { background: rgba(5,150,105,.1); color: #059669; }
+    .badge-navy  { background: rgba(31,56,100,.08); color: #1f3864; }
+    .badge-pink  { background: rgba(233,30,140,.1); color: #e91e8c; }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 7px 14px; border-radius: 7px;
+      font-size: 13px; font-weight: 600; cursor: pointer;
+      border: none; text-decoration: none; transition: all 0.15s;
+    }
+    .btn-primary { background: #1f3864; color: #fff; }
+    .btn-primary:hover { background: #2a4a80; text-decoration: none; }
+    .btn-pink { background: #e91e8c; color: #fff; }
+    .btn-pink:hover { background: #f03fa0; text-decoration: none; }
+    .btn-ghost { background: transparent; color: #4b5563; border: 1px solid #e2e5ec; }
+    .btn-ghost:hover { background: #f3f4f6; text-decoration: none; }
+    .btn-danger { background: transparent; color: #dc2626; border: 1px solid #fca5a5; font-size: 12px; padding: 5px 10px; }
+    .btn-danger:hover { background: #fef2f2; text-decoration: none; }
+    .btn-sm { padding: 5px 10px; font-size: 12px; }
+
+    /* Flex utils */
+    .flex { display: flex; align-items: center; gap: 10px; }
+    .justify-between { justify-content: space-between; }
+    .mb-16 { margin-bottom: 16px; }
+    .mb-24 { margin-bottom: 24px; }
+    .mt-16 { margin-top: 16px; }
+
+    /* Pre blocks */
+    pre {
+      background: #1e293b;
+      color: #e2e8f0;
+      border-radius: 8px;
+      padding: 16px;
+      overflow-x: auto;
+      font-size: 12px;
+      line-height: 1.6;
+      max-height: 500px;
+      overflow-y: auto;
+    }
+
+    /* Alert */
+    .alert {
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      margin-bottom: 20px;
+    }
+    .alert-error { background: #fef2f2; color: #dc2626; border: 1px solid #fca5a5; }
+
+    /* Stat row */
+    .stat-row { display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+    .stat-card {
+      flex: 1; min-width: 140px;
+      background: #fff; border: 1px solid #e2e5ec;
+      border-radius: 10px; padding: 16px 20px;
+    }
+    .stat-value { font-size: 26px; font-weight: 800; color: #1f3864; line-height: 1; }
+    .stat-label { font-size: 12px; color: #9ca3af; margin-top: 4px; }
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="brand">Artist Intelligence <span>Admin</span></div>
+    <div class="nav-right">
+      <a href="/admin/dashboard">Dashboard</a>
+      <a href="/admin/logout">Sign out</a>
+    </div>
+  </nav>
+  <div class="page">
+    {% block content %}{% endblock %}
+  </div>
+</body>
+</html>

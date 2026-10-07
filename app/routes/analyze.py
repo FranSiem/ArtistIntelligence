@@ -6,7 +6,7 @@ from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from app.services import chartmetric, anthropic_client
+from app.services import chartmetric, anthropic_client, audit_log
 from app.services import session_store
 
 router = APIRouter()
@@ -35,6 +35,17 @@ async def _event_stream(cm_id: int):
 
         # Store summary server-side — never sent to the frontend
         session_store.save_session(session_id, artist_name, summary)
+
+        # Persist to audit log for admin portal (fire-and-forget — never blocks SSE)
+        try:
+            await audit_log.record(
+                artist_name=artist_name,
+                cm_id=cm_id,
+                raw=raw,
+                summary=summary,
+            )
+        except Exception:
+            pass  # Audit failure must never surface to the user
 
         full_analysis = []
 

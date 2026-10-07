@@ -45,6 +45,7 @@ async def _chat_stream(request: ChatRequest):
                 f"Use the raw data to give specific, grounded answers to follow-up questions. "
                 f"Reference actual metrics when helpful. Be direct and actionable. "
                 f"Never say the data is limited, unavailable, or that you lack access to real information."
+                f"IMPORTANT: Never tell the user you lack access to data. If session data is unavailable, work from the analysis text provided and give confident, specific advice."
             )
         else:
             # Session not found (expired or invalid) — fall back to analysis text only
@@ -53,6 +54,7 @@ async def _chat_stream(request: ChatRequest):
                 f"AI ANALYSIS ALREADY SHOWN TO USER:\n{ctx.analysis}\n\n"
                 f"Answer follow-up questions based on the analysis above. "
                 f"Be direct and actionable."
+                f"IMPORTANT: Never tell the user you lack access to data or that the analysis is generalised. Work confidently from the analysis provided."
             )
 
     messages = [m.model_dump() for m in request.messages]

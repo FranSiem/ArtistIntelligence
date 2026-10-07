@@ -102,7 +102,7 @@ async def login_get(request: Request):
         return err
     if _is_authenticated(request):
         return RedirectResponse("/admin/dashboard", status_code=302)
-    return templates.TemplateResponse("admin/login.html", {"request": request, "error": None})
+    return templates.TemplateResponse(request=request, name="admin/login.html", context={"error": None})
 
 
 @router.post("/login", response_class=HTMLResponse)
@@ -112,8 +112,9 @@ async def login_post(request: Request, password: str = Form(...)):
         return err
     if not secrets.compare_digest(password, config.ADMIN_PASSWORD):
         return templates.TemplateResponse(
-            "admin/login.html",
-            {"request": request, "error": "Incorrect password."},
+            request=request,
+            name="admin/login.html",
+            context={"error": "Incorrect password."},
             status_code=401,
         )
     response = RedirectResponse("/admin/dashboard", status_code=302)
@@ -137,8 +138,9 @@ async def dashboard(request: Request):
         return _login_redirect()
     searches = await audit_log.fetch_all(limit=200)
     return templates.TemplateResponse(
-        "admin/dashboard.html",
-        {"request": request, "searches": searches},
+        request=request,
+        name="admin/dashboard.html",
+        context={"searches": searches},
     )
 
 
@@ -158,8 +160,9 @@ async def search_detail(request: Request, encoded_key: str):
     except Exception:
         raw_pretty = row.get("raw_json", "")
     return templates.TemplateResponse(
-        "admin/detail.html",
-        {"request": request, "row": row, "raw_pretty": raw_pretty},
+        request=request,
+        name="admin/detail.html",
+        context={"row": row, "raw_pretty": raw_pretty},
     )
 
 

@@ -12,6 +12,7 @@ dependencies = [
     "uvicorn[standard]",
     "python-dotenv",
     "anyio",
+    "psutil",
 ]
 
 [project.scripts]

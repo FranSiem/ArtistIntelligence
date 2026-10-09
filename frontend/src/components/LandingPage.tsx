@@ -43,7 +43,10 @@ export function LandingPage({ onSelectArtist, onSignIn, onSignUp }: Props) {
       <nav id="landing-nav">
         <div className="landing-nav-logo">
           <img src={logo} alt="Sound Metrics Studio" className="landing-nav-logo-img" />
-          <span className="landing-nav-logo-text">Artist Intelligence</span>
+          <div className="nav-wordmark">
+            <span className="landing-nav-logo-text">Artist Intelligence</span>
+            <span className="nav-wordmark-sub">Powered by Sound Metrics Studio</span>
+          </div>
         </div>
         <div className="landing-nav-actions">
           <button className="btn btn-secondary btn-sm" onClick={onSignIn}>

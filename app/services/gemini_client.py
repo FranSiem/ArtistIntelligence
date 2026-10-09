@@ -7,7 +7,7 @@ Both functions are non-blocking enrichment — if the API is unavailable,
 times out, or returns no useful data, they return an empty result so the
 core Chartmetric + Claude pipeline continues unaffected.
 
-Timeout: 8 seconds per call (Gemini grounding can be slow on first call).
+Timeout: 15 seconds per call (Gemini grounding can be slow on first call).
 """
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ from app import config
 
 log = logging.getLogger(__name__)
 
-_TIMEOUT = 8  # seconds
+_TIMEOUT = 15  # seconds
 
 # Empty result returned on any failure
 _EMPTY: dict = {"summary": "", "sources": []}

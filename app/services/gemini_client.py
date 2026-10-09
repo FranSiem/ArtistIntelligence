@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 
 import anyio.to_thread
 
@@ -25,6 +26,26 @@ _TIMEOUT = 8  # seconds
 
 # Empty result returned on any failure
 _EMPTY: dict = {"summary": "", "sources": []}
+
+
+def _clean_query_term(term: str) -> str:
+    """Normalise an artist name / topic for use in a search query.
+
+    Replaces ampersands with 'and', strips apostrophes and other punctuation
+    that can confuse search grounding, and collapses whitespace.
+    Example: "Francesca & The Apostrophe" -> "Francesca and The Apostrophe"
+    """
+    if not term:
+        return ""
+    # Replace & with 'and' so it reads naturally in a search query
+    cleaned = term.replace("&", " and ")
+    # Drop apostrophes/quotes entirely (don't split words)
+    cleaned = re.sub(r"[\'\"`’]", "", cleaned)
+    # Replace any remaining non-alphanumeric (keep spaces and hyphens) with a space
+    cleaned = re.sub(r"[^\w\s-]", " ", cleaned)
+    # Collapse whitespace
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    return cleaned
 
 
 def _make_client():
@@ -92,7 +113,21 @@ def _run_search(query: str) -> dict:
         except Exception:
             pass  # Grounding metadata absent — still return the summary
 
-        return {"summary": summary, "sources": sources}
+        result = {"summary": summary, "sources": sources}
+
+        # ── DEBUG: log what Gemini actually returned (temporary) ──────────────
+        log.info(
+            "GEMINI DEBUG query=%r | summary_len=%d | sources=%d",
+            query, len(summary), len(sources),
+        )
+        if summary:
+            log.info("GEMINI DEBUG summary preview: %s", summary[:500])
+        else:
+            log.info("GEMINI DEBUG: empty summary returned")
+        for i, s in enumerate(sources[:6]):
+            log.info("GEMINI DEBUG source[%d]: %s — %s", i, s.get("title", ""), s.get("url", ""))
+
+        return result
 
     except Exception:
         log.exception("gemini_client._run_search failed for query=%r", query)
@@ -122,7 +157,8 @@ async def search_artist_web(artist_name: str) -> dict:
     Returns {"summary": str, "sources": [{"title", "url", "snippet"}]}.
     Always returns a dict — never raises.
     """
-    query = f"{artist_name} music recent news releases press 2024 2025"
+    safe_name = _clean_query_term(artist_name)
+    query = f"{safe_name} music recent news releases press 2024 2025"
     return await _search_with_timeout(query)
 
 
@@ -132,5 +168,6 @@ async def search_industry_research(topic: str) -> dict:
     Returns {"summary": str, "sources": [{"title", "url", "snippet"}]}.
     Always returns a dict — never raises.
     """
-    query = f"music industry research {topic} independent artists streaming 2024 2025"
+    safe_topic = _clean_query_term(topic)
+    query = f"music industry research {safe_topic} independent artists streaming 2024 2025"
     return await _search_with_timeout(query)

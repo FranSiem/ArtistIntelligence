@@ -1,6 +1,6 @@
 """Gemini web search grounding client.
 
-Uses Gemini 2.0 Flash with Google Search grounding to fetch live web
+Uses Gemini 3.8 Flash with Google Search grounding to fetch live web
 intelligence about an artist and relevant industry research topics.
 
 Both functions are non-blocking enrichment — if the API is unavailable,
@@ -74,7 +74,7 @@ def _run_search(query: str) -> dict:
         from google.genai import types as gtypes  # type: ignore
 
         response = client.models.generate_content(
-            model="gemini-2.0-flash",
+            model="gemini-3.8-flash",
             contents=query,
             config=gtypes.GenerateContentConfig(
                 tools=[gtypes.Tool(google_search=gtypes.GoogleSearch())],

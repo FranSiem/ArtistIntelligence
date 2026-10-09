@@ -40,9 +40,10 @@ async def _enrich_session_in_background(session_id: str, artist_name: str) -> No
     No timeout here — the task runs to completion in the background.
     """
     try:
+        # No timeout — this runs in the background and must not be capped.
         artist_web, industry_research = await asyncio.gather(
-            search_artist_web(artist_name),
-            search_industry_research("independent artist growth streaming"),
+            search_artist_web(artist_name, timeout=None),
+            search_industry_research("independent artist growth streaming", timeout=None),
         )
         updated = session_store.update_session(
             session_id,

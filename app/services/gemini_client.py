@@ -7,7 +7,8 @@ Both functions are non-blocking enrichment — if the API is unavailable,
 times out, or returns no useful data, they return an empty result so the
 core Chartmetric + Claude pipeline continues unaffected.
 
-Timeout: 15 seconds per call (Gemini grounding can be slow on first call).
+Timeout: foreground calls default to 15s; the background enrichment path
+passes timeout=None to run to completion (Gemini grounding can exceed 15s).
 """
 
 from __future__ import annotations
@@ -134,15 +135,21 @@ def _run_search(query: str) -> dict:
         return _EMPTY
 
 
-async def _search_with_timeout(query: str) -> dict:
-    """Run a grounded search with a hard timeout. Returns _EMPTY on timeout."""
+async def _search_with_timeout(query: str, timeout: float | None = _TIMEOUT) -> dict:
+    """Run a grounded search. Returns _EMPTY on timeout or error.
+
+    timeout=None runs the search to completion with no ceiling — used by the
+    background enrichment path, which has no reason to cap how long Gemini takes.
+    A numeric timeout is used by foreground paths (e.g. per-section research)
+    that must not hang a request.
+    """
+    coro = anyio.to_thread.run_sync(lambda: _run_search(query))
     try:
-        return await asyncio.wait_for(
-            anyio.to_thread.run_sync(lambda: _run_search(query)),
-            timeout=_TIMEOUT,
-        )
+        if timeout is None:
+            return await coro
+        return await asyncio.wait_for(coro, timeout=timeout)
     except asyncio.TimeoutError:
-        log.warning("gemini_client: search timed out after %ds for query=%r", _TIMEOUT, query)
+        log.warning("gemini_client: search timed out after %ss for query=%r", timeout, query)
         return _EMPTY
     except Exception:
         log.exception("gemini_client: unexpected error for query=%r", query)
@@ -151,23 +158,23 @@ async def _search_with_timeout(query: str) -> dict:
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
-async def search_artist_web(artist_name: str) -> dict:
+async def search_artist_web(artist_name: str, timeout: float | None = _TIMEOUT) -> dict:
     """Fetch recent web news, releases, and press for an artist.
 
-    Returns {"summary": str, "sources": [{"title", "url", "snippet"}]}.
-    Always returns a dict — never raises.
+    Pass timeout=None (used by the background enrichment task) to run with no
+    ceiling. Returns {"summary": str, "sources": [...]}. Never raises.
     """
     safe_name = _clean_query_term(artist_name)
     query = f"{safe_name} music recent news releases press 2024 2025"
-    return await _search_with_timeout(query)
+    return await _search_with_timeout(query, timeout=timeout)
 
 
-async def search_industry_research(topic: str) -> dict:
+async def search_industry_research(topic: str, timeout: float | None = _TIMEOUT) -> dict:
     """Fetch relevant music industry research for a given topic.
 
-    Returns {"summary": str, "sources": [{"title", "url", "snippet"}]}.
-    Always returns a dict — never raises.
+    Pass timeout=None (used by the background enrichment task) to run with no
+    ceiling. Returns {"summary": str, "sources": [...]}. Never raises.
     """
     safe_topic = _clean_query_term(topic)
     query = f"music industry research {safe_topic} independent artists streaming 2024 2025"
-    return await _search_with_timeout(query)
+    return await _search_with_timeout(query, timeout=timeout)

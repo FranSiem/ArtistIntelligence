@@ -1,12 +1,10 @@
 import { useState } from 'react'
-import type { SectionId, SectionEvent } from '../types'
+import type { SectionId, SectionEvent, Source } from '../types'
 
 export function useSectionStream() {
-  // Completed section content keyed by section ID
   const [sections, setSections] = useState<Partial<Record<SectionId, string>>>({})
-  // Section currently streaming
+  const [sectionSources, setSectionSources] = useState<Partial<Record<SectionId, Source[]>>>({})
   const [activeSection, setActiveSection] = useState<SectionId | null>(null)
-  // In-progress buffer for the active section
   const [activeBuffer, setActiveBuffer] = useState('')
   const [isStreaming, setIsStreaming] = useState(false)
   const [isDone, setIsDone] = useState(false)
@@ -17,6 +15,7 @@ export function useSectionStream() {
     setIsDone(false)
     setError(null)
     setSections({})
+    setSectionSources({})
     setActiveSection(null)
     setActiveBuffer('')
 
@@ -57,12 +56,15 @@ export function useSectionStream() {
               setActiveBuffer(currentBuffer)
 
             } else if (obj.type === 'section_done') {
-              // Move buffer into completed sections map
               const completed = currentBuffer
               setSections(prev => ({ ...prev, [obj.section]: completed }))
               currentBuffer = ''
               setActiveSection(null)
               setActiveBuffer('')
+
+            } else if (obj.type === 'section_sources') {
+              // Sources arrive after section_done — store keyed by section ID
+              setSectionSources(prev => ({ ...prev, [obj.section]: obj.sources }))
 
             } else if (obj.type === 'all_done') {
               setIsDone(true)
@@ -84,6 +86,7 @@ export function useSectionStream() {
 
   function reset() {
     setSections({})
+    setSectionSources({})
     setActiveSection(null)
     setActiveBuffer('')
     setIsStreaming(false)
@@ -93,6 +96,7 @@ export function useSectionStream() {
 
   return {
     sections,
+    sectionSources,
     activeSection,
     activeBuffer,
     isStreaming,

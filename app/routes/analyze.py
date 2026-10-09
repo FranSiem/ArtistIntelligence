@@ -5,6 +5,7 @@ POST /api/analyze/snapshot — Phase 1: fast 3-sentence snapshot, returns sessio
 POST /api/analyze/sections — Phase 2: stream selected sections one by one
 """
 
+import asyncio
 import json
 import uuid
 from typing import List
@@ -15,12 +16,22 @@ from pydantic import BaseModel
 
 from app.services import chartmetric, anthropic_client, audit_log
 from app.services import session_store
+from app.services.gemini_client import search_artist_web, search_industry_research
 from app.prompts import SECTION_PROMPTS
 
 router = APIRouter()
 
-# Valid section IDs — guards against arbitrary prompt injection
 _VALID_SECTIONS = frozenset(SECTION_PROMPTS.keys())
+
+# Topic mapped to each section for per-section industry research
+SECTION_RESEARCH_TOPICS: dict[str, str] = {
+    "audience_geography":    "music audience geography diaspora listeners",
+    "streaming_performance": "spotify streaming performance independent artists playlists",
+    "radio_press":           "radio airplay press coverage independent music strategy",
+    "collaborators":         "music collaboration strategy artist features growth",
+    "next_steps":            "independent artist 30 day marketing strategy",
+    "revenue_royalties":     "music royalties revenue streams independent artists",
+}
 
 
 # ── Request models ────────────────────────────────────────────────────────────
@@ -28,14 +39,29 @@ _VALID_SECTIONS = frozenset(SECTION_PROMPTS.keys())
 class AnalyzeRequest(BaseModel):
     cm_id: int
 
-
 class SnapshotRequest(BaseModel):
     cm_id: int
-
 
 class SectionsRequest(BaseModel):
     session_id: str
     sections: List[str]
+
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+def _merge_sources(*source_lists: list) -> list:
+    """Deduplicate and cap combined sources at 6, keyed by URL."""
+    seen: set[str] = set()
+    merged: list[dict] = []
+    for lst in source_lists:
+        for src in lst:
+            url = src.get("url", "")
+            if url and url not in seen:
+                seen.add(url)
+                merged.append(src)
+                if len(merged) >= 6:
+                    return merged
+    return merged
 
 
 # ── Original monolithic endpoint (unchanged — backwards compatible) ────────────
@@ -43,36 +69,22 @@ class SectionsRequest(BaseModel):
 async def _event_stream(cm_id: int):
     artist_name = "Unknown Artist"
     session_id = str(uuid.uuid4())
-
     try:
         yield f"data: {json.dumps({'type': 'status', 'text': 'Fetching artist data...'})}\n\n"
-
         raw = await chartmetric.gather_artist_data(cm_id)
-
         meta = raw.get("metadata") or {}
         if isinstance(meta, dict):
             artist_name = meta.get("name", artist_name)
-
         yield f"data: {json.dumps({'type': 'status', 'text': 'Analysing...'})}\n\n"
-
         summary = chartmetric.summarize_for_ai(raw)
         session_store.save_session(session_id, artist_name, summary)
-
         try:
-            await audit_log.record(
-                artist_name=artist_name,
-                cm_id=cm_id,
-                raw=raw,
-                summary=summary,
-            )
+            await audit_log.record(artist_name=artist_name, cm_id=cm_id, raw=raw, summary=summary)
         except Exception:
             pass
-
         async for token in anthropic_client.stream_analysis(artist_name, summary):
             yield f"data: {json.dumps({'type': 'token', 'text': token})}\n\n"
-
         yield f"data: {json.dumps({'type': 'done', 'artist_name': artist_name, 'session_id': session_id})}\n\n"
-
     except Exception as e:
         yield f"data: {json.dumps({'type': 'error', 'text': str(e)})}\n\n"
 
@@ -91,35 +103,40 @@ async def analyze_artist(body: AnalyzeRequest):
 async def _snapshot_stream(cm_id: int):
     artist_name = "Unknown Artist"
     session_id = str(uuid.uuid4())
-
     try:
         yield f"data: {json.dumps({'type': 'status', 'text': 'Fetching artist data...'})}\n\n"
 
         raw = await chartmetric.gather_artist_data(cm_id)
-
         meta = raw.get("metadata") or {}
         if isinstance(meta, dict):
             artist_name = meta.get("name", artist_name)
 
-        yield f"data: {json.dumps({'type': 'status', 'text': 'Building snapshot...'})}\n\n"
+        yield f"data: {json.dumps({'type': 'status', 'text': 'Enriching with web intelligence...'})}\n\n"
 
         summary = chartmetric.summarize_for_ai(raw)
 
-        # Store server-side immediately so sections can use it without re-fetching
-        session_store.save_session(session_id, artist_name, summary)
+        # Fetch Gemini enrichment concurrently — non-blocking, failures return {}
+        artist_web, industry_research = await asyncio.gather(
+            search_artist_web(artist_name),
+            search_industry_research("independent artist growth streaming"),
+        )
 
-        # Audit — fire and forget
+        # Store everything server-side; Gemini data available for section calls
+        session_store.save_session(
+            session_id,
+            artist_name,
+            summary,
+            artist_web=artist_web,
+            industry_research=industry_research,
+        )
+
         try:
-            await audit_log.record(
-                artist_name=artist_name,
-                cm_id=cm_id,
-                raw=raw,
-                summary=summary,
-            )
+            await audit_log.record(artist_name=artist_name, cm_id=cm_id, raw=raw, summary=summary)
         except Exception:
             pass
 
-        # Stream the snapshot
+        yield f"data: {json.dumps({'type': 'status', 'text': 'Building snapshot...'})}\n\n"
+
         async for token in anthropic_client.stream_snapshot(artist_name, summary):
             yield f"data: {json.dumps({'type': 'token', 'text': token})}\n\n"
 
@@ -141,7 +158,6 @@ async def analyze_snapshot(body: SnapshotRequest):
 # ── Phase 2: Sections ─────────────────────────────────────────────────────────
 
 async def _sections_stream(session_id: str, sections: List[str]):
-    # Validate section IDs up front — reject anything not in the allowed set
     invalid = [s for s in sections if s not in _VALID_SECTIONS]
     if invalid:
         yield f"data: {json.dumps({'type': 'error', 'text': f'Unknown section(s): {invalid}'})}\n\n"
@@ -154,19 +170,43 @@ async def _sections_stream(session_id: str, sections: List[str]):
 
     artist_name = session["artist_name"]
     summary = session["summary"]
+    # Gemini data stored at snapshot time — empty dicts if Gemini was unavailable
+    artist_web: dict = session.get("artist_web") or {}
+    base_industry_research: dict = session.get("industry_research") or {}
 
     for section_id in sections:
         try:
             yield f"data: {json.dumps({'type': 'section_start', 'section': section_id})}\n\n"
 
-            async for token in anthropic_client.stream_section(section_id, artist_name, summary):
+            # Fetch section-specific industry research concurrently with streaming prep
+            # Uses the topic mapped to this section; gracefully returns {} on failure
+            topic = SECTION_RESEARCH_TOPICS.get(section_id, "music industry independent artists")
+            section_research = await search_industry_research(topic)
+
+            async for token in anthropic_client.stream_section(
+                section_id=section_id,
+                artist_name=artist_name,
+                summary=summary,
+                artist_web_summary=artist_web.get("summary", ""),
+                industry_research_summary=(
+                    section_research.get("summary", "")
+                    or base_industry_research.get("summary", "")
+                ),
+            ):
                 yield f"data: {json.dumps({'type': 'token', 'text': token})}\n\n"
 
             yield f"data: {json.dumps({'type': 'section_done', 'section': section_id})}\n\n"
 
+            # Emit combined sources for this section (artist web + section research)
+            combined = _merge_sources(
+                artist_web.get("sources", []),
+                section_research.get("sources", []),
+            )
+            if combined:
+                yield f"data: {json.dumps({'type': 'section_sources', 'section': section_id, 'sources': combined})}\n\n"
+
         except Exception as e:
             yield f"data: {json.dumps({'type': 'error', 'text': f'Section {section_id} failed: {str(e)}'})}\n\n"
-            # Continue with remaining sections rather than aborting the whole stream
 
     yield f"data: {json.dumps({'type': 'all_done'})}\n\n"
 

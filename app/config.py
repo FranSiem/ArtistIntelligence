@@ -43,3 +43,6 @@ YOUTUBE_API_KEY: str = os.environ.get("YOUTUBE_API_KEY", "")
 
 # ── Admin portal ──────────────────────────────────────────────────────────────
 ADMIN_PASSWORD: str = os.environ.get("ADMIN_PASSWORD", "")
+
+# ── Gemini (optional — enrichment only, never blocks core analysis) ────────────
+GEMINI_API_KEY: str = os.environ.get("GEMINI_API_KEY", "")

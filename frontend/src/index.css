@@ -1730,3 +1730,65 @@ ul, ol { list-style: none; }
 @media (max-width: 600px) {
   .section-selector-grid { grid-template-columns: 1fr; }
 }
+
+/* ============================================================
+   SOURCES PANEL
+   ============================================================ */
+.sources-panel {
+  margin-top: 12px;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+.sources-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.15s;
+}
+.sources-toggle:hover { color: var(--navy); }
+.sources-toggle-icon {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+.sources-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+  animation: fadeIn 0.2s ease both;
+}
+.source-item {
+  background: var(--bg-deep);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+}
+.source-item-title {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--navy);
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 4px;
+  transition: color 0.15s;
+}
+.source-item-title:hover { color: var(--pink); text-decoration: underline; }
+.source-item-snippet {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.45;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}

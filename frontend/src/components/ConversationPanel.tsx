@@ -7,6 +7,7 @@ import { useChatStream } from '../hooks/useChatStream'
 import { SnapshotCard } from './SnapshotCard'
 import { SectionSelector } from './SectionSelector'
 import { MessageBubble } from './MessageBubble'
+import { SourcesPanel } from './SourcesPanel'
 
 // Section metadata for result card labels/icons
 const SECTION_META: Record<SectionId, { icon: string; title: string }> = {
@@ -52,6 +53,7 @@ export function ConversationPanel({ artist, onArtistContext }: Props) {
   // Phase 2/3 — sections
   const {
     sections: completedSections,
+    sectionSources,
     activeSection,
     activeBuffer,
     isStreaming: isSectionStreaming,
@@ -213,6 +215,10 @@ export function ConversationPanel({ artist, onArtistContext }: Props) {
                     (isActive ? '<span class="streaming-cursor"></span>' : ''),
                 }}
               />
+              {/* Sources panel — appears after section completes */}
+              {!isActive && sectionSources[id] && (
+                <SourcesPanel sources={sectionSources[id]!} />
+              )}
             </div>
           )
         })}

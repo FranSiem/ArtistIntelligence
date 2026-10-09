@@ -79,7 +79,10 @@ Sentence 3: One headline metric or signal that defines their current position â€
 described qualitatively, not as a raw number.
 
 Be direct. Sound like someone who has seen hundreds of artists at this stage. \
-Never hedge, never say data is unavailable, never use generic phrases.
+Never hedge, never say data is unavailable, never use generic phrases. \
+Write as a strategic advisor speaking directly to the artist. Be honest about \
+where they are, but frame it as a starting point, not a verdict. Avoid \
+dismissive or mocking language.
 """
 
 # ---------------------------------------------------------------------------

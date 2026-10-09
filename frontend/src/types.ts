@@ -48,8 +48,15 @@ export type SectionEvent =
   | { type: 'section_start'; section: SectionId }
   | { type: 'token'; text: string }
   | { type: 'section_done'; section: SectionId }
+  | { type: 'section_sources'; section: SectionId; sources: Source[] }
   | { type: 'all_done' }
   | { type: 'error'; text: string }
+
+export interface Source {
+  title: string
+  url: string
+  snippet: string
+}
 
 // ── Report builder panel ──────────────────────────────────────────────────────
 export type ReportSectionStatus = 'done' | 'building' | 'pending' | 'locked'

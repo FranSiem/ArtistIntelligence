@@ -70,17 +70,48 @@ async def stream_section(
     section_id: str,
     artist_name: str,
     summary: str,
+    artist_web_summary: str = "",
+    industry_research_summary: str = "",
 ) -> AsyncIterator[str]:
     """Stream a single analysis section using its focused prompt.
 
+    artist_web_summary and industry_research_summary are injected as
+    additional context before the section instruction when non-empty.
     Raises KeyError if section_id is not in SECTION_PROMPTS.
     """
     from app.prompts import SECTION_PROMPTS
     system = SECTION_PROMPTS[section_id].format(artist_name=artist_name)
-    user_message = (
-        f"Artist: {artist_name}\n\n"
-        f"Data summary:\n{summary}"
-    )
+
+    # Build user message — inject Gemini enrichment when available
+    enrichment_blocks: list[str] = []
+    if artist_web_summary:
+        enrichment_blocks.append(
+            f"Recent web intelligence for {artist_name}:\n{artist_web_summary}"
+        )
+    if industry_research_summary:
+        enrichment_blocks.append(
+            f"Relevant industry research:\n{industry_research_summary}"
+        )
+
+    if enrichment_blocks:
+        enrichment = "\n\n".join(enrichment_blocks)
+        enrichment += (
+            "\n\nUse the above to inform your recommendations. Where the research "
+            "supports a specific claim, let it shape the advice — but write as an "
+            "advisor, not a researcher. Do not reproduce URLs or citation markers "
+            "in your output."
+        )
+        user_message = (
+            f"Artist: {artist_name}\n\n"
+            f"Data summary:\n{summary}\n\n"
+            f"{enrichment}"
+        )
+    else:
+        user_message = (
+            f"Artist: {artist_name}\n\n"
+            f"Data summary:\n{summary}"
+        )
+
     async with get_client().messages.stream(
         model=config.ANTHROPIC_MODEL,
         max_tokens=512,

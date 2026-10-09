@@ -3,14 +3,18 @@
 Uses Redis when REDIS_URL is set (production on Railway), falls back to an
 in-memory dict for local development without a Redis instance.
 
-The public interface is identical in both modes — callers never need to know
-which backend is active.
+Sessions now store an arbitrary payload dict so new fields (Gemini web
+data, industry research) can be added without changing this module's
+interface. The only required keys callers must set are:
+    artist_name: str
+    summary: str
 
-Redis sessions have a 24-hour TTL so memory never grows unboundedly.
+Optional keys stored alongside them (Gemini enrichment):
+    artist_web: {"summary": str, "sources": [...]}
+    industry_research: {"summary": str, "sources": [...]}
+
+Redis sessions have a 24-hour TTL.
 The in-memory fallback has no TTL — suitable for local dev only.
-
-Migration path: when REDIS_URL is set, this module is already using Redis.
-No code change is needed when moving to production.
 """
 
 from __future__ import annotations
@@ -22,15 +26,12 @@ from app import config
 
 log = logging.getLogger(__name__)
 
-# Session TTL in seconds (24 hours)
-_TTL = 86_400
+_TTL = 86_400  # 24 hours
 
-# ── Redis backend ─────────────────────────────────────────────────────────────
 _redis_client = None
 
 
 def _redis():
-    """Return a Redis client, lazily initialised on first call."""
     global _redis_client
     if _redis_client is None:
         import redis as _redis_lib
@@ -44,15 +45,18 @@ def _redis():
     return _redis_client
 
 
-# ── In-memory fallback ────────────────────────────────────────────────────────
 _store: dict[str, dict] = {}
 
 
-# ── Public interface ──────────────────────────────────────────────────────────
+def save_session(session_id: str, artist_name: str, summary: str, **extra) -> None:
+    """Persist a session. Pass additional keyword args to store extra fields.
 
-def save_session(session_id: str, artist_name: str, summary: str) -> None:
-    """Persist an analysis session keyed by session_id."""
-    payload = {"artist_name": artist_name, "summary": summary}
+    Example:
+        save_session(sid, "Billie", summary,
+                     artist_web={"summary": ..., "sources": [...]},
+                     industry_research={"summary": ..., "sources": [...]})
+    """
+    payload = {"artist_name": artist_name, "summary": summary, **extra}
     if config.REDIS_URL:
         try:
             _redis().setex(f"session:{session_id}", _TTL, json.dumps(payload))
@@ -63,7 +67,7 @@ def save_session(session_id: str, artist_name: str, summary: str) -> None:
 
 
 def get_session(session_id: str) -> dict | None:
-    """Return {artist_name, summary} for the given ID, or None if not found."""
+    """Return the full session payload, or None if not found."""
     if config.REDIS_URL:
         try:
             raw = _redis().get(f"session:{session_id}")
@@ -74,7 +78,6 @@ def get_session(session_id: str) -> dict | None:
 
 
 def delete_session(session_id: str) -> None:
-    """Remove a session."""
     if config.REDIS_URL:
         try:
             _redis().delete(f"session:{session_id}")
@@ -85,7 +88,6 @@ def delete_session(session_id: str) -> None:
 
 
 def session_count() -> int:
-    """Diagnostic helper — number of active sessions."""
     if config.REDIS_URL:
         try:
             return _redis().dbsize()

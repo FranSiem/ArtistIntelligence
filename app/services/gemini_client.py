@@ -1,0 +1,136 @@
+"""Gemini web search grounding client.
+
+Uses Gemini 2.0 Flash with Google Search grounding to fetch live web
+intelligence about an artist and relevant industry research topics.
+
+Both functions are non-blocking enrichment — if the API is unavailable,
+times out, or returns no useful data, they return an empty result so the
+core Chartmetric + Claude pipeline continues unaffected.
+
+Timeout: 8 seconds per call (Gemini grounding can be slow on first call).
+"""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+
+import anyio.to_thread
+
+from app import config
+
+log = logging.getLogger(__name__)
+
+_TIMEOUT = 8  # seconds
+
+# Empty result returned on any failure
+_EMPTY: dict = {"summary": "", "sources": []}
+
+
+def _make_client():
+    """Return a configured Gemini client, or None if GEMINI_API_KEY is unset."""
+    if not config.GEMINI_API_KEY:
+        return None
+    try:
+        from google import genai  # type: ignore
+        return genai.Client(api_key=config.GEMINI_API_KEY)
+    except Exception:
+        log.exception("gemini_client: failed to initialise google-genai client")
+        return None
+
+
+def _run_search(query: str) -> dict:
+    """Synchronous Gemini call with Google Search grounding.
+
+    Returns {"summary": str, "sources": [{"title", "url", "snippet"}]}.
+    Called via anyio.to_thread.run_sync to avoid blocking the event loop.
+    """
+    client = _make_client()
+    if not client:
+        return _EMPTY
+
+    try:
+        from google.genai import types as gtypes  # type: ignore
+
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=query,
+            config=gtypes.GenerateContentConfig(
+                tools=[gtypes.Tool(google_search=gtypes.GoogleSearch())],
+                temperature=0.2,
+            ),
+        )
+
+        # Extract plain text summary
+        summary = ""
+        if response.candidates:
+            candidate = response.candidates[0]
+            if candidate.content and candidate.content.parts:
+                summary = "".join(
+                    p.text for p in candidate.content.parts if hasattr(p, "text") and p.text
+                ).strip()
+
+        # Extract grounding sources
+        sources: list[dict] = []
+        try:
+            metadata = response.candidates[0].grounding_metadata
+            if metadata and metadata.grounding_chunks:
+                seen_urls: set[str] = set()
+                for chunk in metadata.grounding_chunks:
+                    web = getattr(chunk, "web", None)
+                    if not web:
+                        continue
+                    url = getattr(web, "uri", "") or ""
+                    if not url or url in seen_urls:
+                        continue
+                    seen_urls.add(url)
+                    sources.append({
+                        "title": getattr(web, "title", "") or "",
+                        "url": url,
+                        "snippet": getattr(web, "snippet", "") or "",
+                    })
+        except Exception:
+            pass  # Grounding metadata absent — still return the summary
+
+        return {"summary": summary, "sources": sources}
+
+    except Exception:
+        log.exception("gemini_client._run_search failed for query=%r", query)
+        return _EMPTY
+
+
+async def _search_with_timeout(query: str) -> dict:
+    """Run a grounded search with a hard timeout. Returns _EMPTY on timeout."""
+    try:
+        return await asyncio.wait_for(
+            anyio.to_thread.run_sync(lambda: _run_search(query)),
+            timeout=_TIMEOUT,
+        )
+    except asyncio.TimeoutError:
+        log.warning("gemini_client: search timed out after %ds for query=%r", _TIMEOUT, query)
+        return _EMPTY
+    except Exception:
+        log.exception("gemini_client: unexpected error for query=%r", query)
+        return _EMPTY
+
+
+# ── Public API ────────────────────────────────────────────────────────────────
+
+async def search_artist_web(artist_name: str) -> dict:
+    """Fetch recent web news, releases, and press for an artist.
+
+    Returns {"summary": str, "sources": [{"title", "url", "snippet"}]}.
+    Always returns a dict — never raises.
+    """
+    query = f"{artist_name} music recent news releases press 2024 2025"
+    return await _search_with_timeout(query)
+
+
+async def search_industry_research(topic: str) -> dict:
+    """Fetch relevant music industry research for a given topic.
+
+    Returns {"summary": str, "sources": [{"title", "url", "snippet"}]}.
+    Always returns a dict — never raises.
+    """
+    query = f"music industry research {topic} independent artists streaming 2024 2025"
+    return await _search_with_timeout(query)

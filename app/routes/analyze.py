@@ -7,6 +7,7 @@ POST /api/analyze/sections — Phase 2: stream selected sections one by one
 
 import asyncio
 import json
+import logging
 import uuid
 from typing import List
 
@@ -20,6 +21,8 @@ from app.services.gemini_client import search_artist_web, search_industry_resear
 from app.prompts import SECTION_PROMPTS
 
 router = APIRouter()
+
+log = logging.getLogger(__name__)
 
 _VALID_SECTIONS = frozenset(SECTION_PROMPTS.keys())
 
@@ -128,6 +131,19 @@ async def _snapshot_stream(cm_id: int):
             summary,
             artist_web=artist_web,
             industry_research=industry_research,
+        )
+
+        # ── DEBUG: confirm what was stored in the session (temporary) ─────────
+        _aw = artist_web or {}
+        _ir = industry_research or {}
+        log.info(
+            "SESSION DEBUG save session_id=%s artist=%r | artist_web summary_len=%d sources=%d | industry_research summary_len=%d sources=%d",
+            session_id,
+            artist_name,
+            len(_aw.get("summary", "")),
+            len(_aw.get("sources", [])),
+            len(_ir.get("summary", "")),
+            len(_ir.get("sources", [])),
         )
 
         try:

@@ -1,9 +1,32 @@
-import { useRef, useEffect, type KeyboardEvent } from 'react'
+import { useRef, useEffect, useState, type KeyboardEvent } from 'react'
 import { marked } from 'marked'
-import type { Artist, ArtistContext } from '../types'
-import { useAnalysisStream } from '../hooks/useAnalysisStream'
+import type { Artist, ArtistContext, SectionId } from '../types'
+import { useSnapshotStream } from '../hooks/useSnapshotStream'
+import { useSectionStream } from '../hooks/useSectionStream'
 import { useChatStream } from '../hooks/useChatStream'
+import { SnapshotCard } from './SnapshotCard'
+import { SectionSelector } from './SectionSelector'
 import { MessageBubble } from './MessageBubble'
+
+// Section metadata for result card labels/icons
+const SECTION_META: Record<SectionId, { icon: string; title: string }> = {
+  audience_geography:    { icon: '🌍', title: 'Audience & Geography' },
+  streaming_performance: { icon: '📊', title: 'Streaming Performance' },
+  radio_press:           { icon: '📻', title: 'Radio & Press Reach' },
+  collaborators:         { icon: '🤝', title: 'Collaborator Opportunities' },
+  next_steps:            { icon: '🎯', title: 'Next Steps' },
+  revenue_royalties:     { icon: '💷', title: 'Revenue & Royalties' },
+}
+
+// Ordered list matches SectionSelector display order
+const SECTION_ORDER: SectionId[] = [
+  'audience_geography',
+  'streaming_performance',
+  'radio_press',
+  'collaborators',
+  'next_steps',
+  'revenue_royalties',
+]
 
 interface Props {
   artist: Artist | null
@@ -11,34 +34,53 @@ interface Props {
 }
 
 export function ConversationPanel({ artist, onArtistContext }: Props) {
-  const { analysisText, status, isAnalyzing, analyze } = useAnalysisStream(onArtistContext)
-  const { messages, isStreaming, sendMessage } = useChatStream(
-    // Pass artist context to chat only once analysis is done
-    analysisText && !isAnalyzing && artist
-      ? { name: artist.name, analysis: analysisText, session_id: '' }
-      : null
+  // Plain useState — setter is stable across renders and safe in async callbacks
+  const [artistCtx, setArtistCtx] = useState<ArtistContext | null>(null)
+
+  // Phase 1 — snapshot
+  const {
+    snapshotText,
+    status: snapshotStatus,
+    isLoading: isSnapshotLoading,
+    fetchSnapshot,
+    reset: resetSnapshot,
+  } = useSnapshotStream((ctx) => {
+    onArtistContext(ctx)
+    setArtistCtx(ctx)
+  })
+
+  // Phase 2/3 — sections
+  const {
+    sections: completedSections,
+    activeSection,
+    activeBuffer,
+    isStreaming: isSectionStreaming,
+    isDone: sectionsAllDone,
+    generateSections,
+    reset: resetSections,
+  } = useSectionStream()
+
+  // Chat — available once snapshot completes
+  const { messages, isStreaming: isChatStreaming, sendMessage } = useChatStream(
+    snapshotText && !isSnapshotLoading ? artistCtx : null
   )
 
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
-  const analysisRef = useRef<HTMLDivElement>(null)
 
-  // Kick off analysis as soon as an artist is selected
+  // Kick off snapshot as soon as an artist is selected
   useEffect(() => {
-    if (artist) analyze(artist.cm_id)
+    if (!artist) return
+    resetSnapshot()
+    resetSections()
+    setArtistCtx(null)
+    fetchSnapshot(artist.cm_id)
   }, [artist?.cm_id])
 
-  // Render markdown for completed analysis directly into DOM (avoids flicker)
-  useEffect(() => {
-    if (analysisRef.current && analysisText && !isAnalyzing) {
-      analysisRef.current.innerHTML = marked.parse(analysisText) as string
-    }
-  }, [analysisText, isAnalyzing])
-
-  // Auto-scroll to latest message
+  // Auto-scroll to bottom on any new content
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, analysisText])
+  }, [snapshotText, completedSections, activeBuffer, messages])
 
   function autoResize() {
     const el = textareaRef.current
@@ -51,7 +93,7 @@ export function ConversationPanel({ artist, onArtistContext }: Props) {
     const el = textareaRef.current
     if (!el) return
     const text = el.value.trim()
-    if (!text || isStreaming) return
+    if (!text || isChatStreaming || isSnapshotLoading) return
     sendMessage(text)
     el.value = ''
     autoResize()
@@ -64,10 +106,13 @@ export function ConversationPanel({ artist, onArtistContext }: Props) {
     }
   }
 
-  // ── Active source count for header pill ──────────────────────────────────
-  const sourceCount = 2 // Chartmetric + YouTube active by default; will be dynamic later
+  // Derived state
+  const snapshotDone = snapshotText.length > 0 && !isSnapshotLoading
+  const hasSectionContent =
+    Object.keys(completedSections).length > 0 || activeSection !== null
+  const sourceCount = 2
 
-  // ── Empty state — no artist selected ────────────────────────────────────
+  // ── Empty state ────────────────────────────────────────────────────────────
   if (!artist) {
     return (
       <main id="conversation-panel">
@@ -75,7 +120,7 @@ export function ConversationPanel({ artist, onArtistContext }: Props) {
           <div className="conv-empty-icon">🎼</div>
           <div className="conv-empty-title">No artist loaded</div>
           <p className="conv-empty-sub">
-            Search for an artist on the landing page to generate a strategic analysis.
+            Search for an artist to get an instant snapshot and choose your analysis sections.
           </p>
         </div>
         <div className="conv-input-area">
@@ -84,7 +129,7 @@ export function ConversationPanel({ artist, onArtistContext }: Props) {
               ref={textareaRef}
               id="chat-input"
               rows={1}
-              placeholder="Load an artist first to start the conversation…"
+              placeholder="Load an artist first…"
               disabled
             />
             <button className="btn-icon" disabled aria-label="Send">➤</button>
@@ -108,54 +153,76 @@ export function ConversationPanel({ artist, onArtistContext }: Props) {
             Analysis window: last 90 days · {sourceCount} sources active
           </div>
         </div>
-        <div className="conv-sources-pill">
-          {sourceCount} sources
-        </div>
+        <div className="conv-sources-pill">{sourceCount} sources</div>
       </div>
 
-      {/* ── Messages ────────────────────────────────────────────────────── */}
+      {/* ── Content area ────────────────────────────────────────────────── */}
       <div className="conv-messages">
 
-        {/* Analysis phase — skeleton while loading */}
-        {isAnalyzing && !analysisText && (
-          <div id="analysis-skeleton">
-            <div className="skeleton skeleton-line wide"   style={{ marginBottom: '10px' }} />
-            <div className="skeleton skeleton-line medium" style={{ marginBottom: '10px' }} />
-            <div className="skeleton skeleton-line wide"   style={{ marginBottom: '10px' }} />
-            <div className="skeleton skeleton-line narrow" style={{ marginBottom: '10px' }} />
-            <div className="skeleton skeleton-line wide"   style={{ marginBottom: '10px' }} />
+        {/* Phase 1: skeleton before first token */}
+        {isSnapshotLoading && !snapshotText && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div className="skeleton skeleton-line wide" />
             <div className="skeleton skeleton-line medium" />
+            <div className="skeleton skeleton-line narrow" />
           </div>
         )}
 
-        {/* Streaming analysis tokens rendered as a live assistant bubble */}
-        {isAnalyzing && analysisText && (
-          <div className="msg-row">
-            <div className="msg-avatar">AI</div>
+        {/* Phase 1: snapshot card (streaming or complete) */}
+        {snapshotText && (
+          <SnapshotCard
+            text={snapshotText}
+            isStreaming={isSnapshotLoading}
+            artistName={artist.name}
+          />
+        )}
+
+        {/* Phase 2: section selector — appears once snapshot completes,
+            and again after a batch finishes so user can generate more */}
+        {snapshotDone && (!hasSectionContent || sectionsAllDone) && (
+          <SectionSelector
+            onGenerate={(ids) => generateSections(artistCtx!.session_id, ids)}
+            isGenerating={isSectionStreaming}
+          />
+        )}
+
+        {/* Phase 3: section result cards stream in order */}
+        {SECTION_ORDER.filter(id =>
+          completedSections[id] !== undefined || activeSection === id
+        ).map(id => {
+          const meta = SECTION_META[id]
+          const isActive = activeSection === id
+          const content = isActive ? activeBuffer : (completedSections[id] ?? '')
+          return (
             <div
-              className="msg assistant streaming"
-              dangerouslySetInnerHTML={{ __html: marked.parse(analysisText) as string }}
-            />
-          </div>
-        )}
+              key={id}
+              className={`section-result-card${isActive ? ' streaming' : ''}`}
+            >
+              <div className="section-result-title">
+                <span className="section-result-icon">{meta.icon}</span>
+                {meta.title}
+                {isActive && (
+                  <span className="spinner" style={{ marginLeft: 'auto', flexShrink: 0 }} />
+                )}
+              </div>
+              <div
+                className="section-result-body"
+                dangerouslySetInnerHTML={{
+                  __html:
+                    (marked.parse(content) as string) +
+                    (isActive ? '<span class="streaming-cursor"></span>' : ''),
+                }}
+              />
+            </div>
+          )
+        })}
 
-        {/* Completed analysis — rendered via ref for performance */}
-        {!isAnalyzing && analysisText && (
-          <div className="msg-row">
-            <div className="msg-avatar">AI</div>
-            <div
-              className="msg assistant"
-              ref={analysisRef}
-            />
-          </div>
-        )}
-
-        {/* Follow-up conversation messages */}
+        {/* Chat follow-up messages */}
         {messages.map((msg, i) => (
           <MessageBubble
             key={i}
             message={msg}
-            streaming={isStreaming && i === messages.length - 1 && msg.role === 'assistant'}
+            streaming={isChatStreaming && i === messages.length - 1 && msg.role === 'assistant'}
           />
         ))}
 
@@ -163,10 +230,16 @@ export function ConversationPanel({ artist, onArtistContext }: Props) {
       </div>
 
       {/* ── Status bar ──────────────────────────────────────────────────── */}
-      {(isAnalyzing || isStreaming) && (
+      {(isSnapshotLoading || isSectionStreaming || isChatStreaming) && (
         <div className="conv-status-bar">
           <div className="spinner" />
-          <span>{isAnalyzing ? (status || 'Analysing…') : 'Thinking…'}</span>
+          <span>
+            {isSnapshotLoading
+              ? (snapshotStatus || 'Building snapshot…')
+              : isSectionStreaming
+                ? `Generating ${activeSection ? SECTION_META[activeSection].title : ''}…`
+                : 'Thinking…'}
+          </span>
         </div>
       )}
 
@@ -178,18 +251,18 @@ export function ConversationPanel({ artist, onArtistContext }: Props) {
             id="chat-input"
             rows={1}
             placeholder={
-              isAnalyzing
-                ? 'Analysis in progress…'
+              isSnapshotLoading
+                ? 'Building snapshot…'
                 : 'Ask anything about this artist…'
             }
             onInput={autoResize}
             onKeyDown={handleKeyDown}
-            disabled={isAnalyzing}
+            disabled={isSnapshotLoading}
           />
           <button
             className="btn-icon"
             onClick={handleSend}
-            disabled={isStreaming || isAnalyzing}
+            disabled={isChatStreaming || isSnapshotLoading}
             aria-label="Send message"
           >
             ➤

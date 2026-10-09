@@ -1545,3 +1545,188 @@ ul, ol { list-style: none; }
 .justify-between { justify-content: space-between; }
 .error-text { font-size: 13px; color: var(--red); }
 .dim-text   { font-size: 13px; color: var(--text-muted); }
+
+/* ============================================================
+   SNAPSHOT CARD
+   ============================================================ */
+.snapshot-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--pink);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  animation: slideIn 0.3s ease both;
+}
+.snapshot-card-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--pink);
+  margin-bottom: 10px;
+}
+.snapshot-card-text {
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--text);
+  font-weight: 500;
+}
+
+/* ============================================================
+   SECTION SELECTOR
+   ============================================================ */
+.section-selector {
+  animation: fadeUp 0.35s ease both;
+}
+.section-selector-heading {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--navy);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+.section-selector-sub {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+}
+.section-selector-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.section-card {
+  position: relative;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+  user-select: none;
+}
+.section-card:hover:not(.locked) {
+  border-color: var(--navy);
+  box-shadow: var(--shadow-sm);
+}
+.section-card.selected {
+  border-color: var(--pink);
+  background: var(--pink-dim);
+  box-shadow: 0 0 0 1px var(--pink);
+}
+.section-card.locked {
+  opacity: 0.6;
+  cursor: default;
+}
+.section-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+.section-card-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.section-card-icon { font-size: 18px; flex-shrink: 0; }
+.section-card-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--navy);
+  line-height: 1.2;
+}
+.section-card.selected .section-card-title { color: var(--pink); }
+.section-card-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.4;
+  padding-left: 26px;
+}
+.section-card.selected .section-card-desc { color: var(--text-dim); }
+
+/* Selected tick */
+.section-card-tick {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border-strong);
+  background: var(--surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+.section-card.selected .section-card-tick {
+  background: var(--pink);
+  border-color: var(--pink);
+  color: #fff;
+}
+
+/* Pro badge */
+.section-pro-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 99px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  background: var(--pink-dim);
+  color: var(--pink);
+  flex-shrink: 0;
+}
+
+/* Generate button row */
+.section-generate-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.section-generate-count {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* ============================================================
+   COMPLETED SECTION INSIGHT CARDS
+   (extends existing .insight-card pattern)
+   ============================================================ */
+.section-result-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--navy);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  animation: slideIn 0.3s ease both;
+}
+.section-result-card.streaming {
+  border-left-color: var(--pink);
+}
+.section-result-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--navy);
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.section-result-title .section-result-icon { font-size: 14px; }
+.section-result-body {
+  font-size: 14px;
+  color: var(--text-dim);
+  line-height: 1.65;
+  white-space: pre-wrap;
+}
+
+@media (max-width: 600px) {
+  .section-selector-grid { grid-template-columns: 1fr; }
+}

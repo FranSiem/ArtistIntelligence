@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import type { Page, Artist, ArtistContext } from './types'
 import { LandingPage } from './components/LandingPage'
 import { SignInPage } from './components/SignInPage'
@@ -23,6 +23,16 @@ export default function App() {
     return <AccessGate onGranted={() => setAccessGranted(true)} />
   }
 
+  // ── Back button — push a history entry on navigation so the browser
+  // back button returns to landing instead of exiting the app entirely
+  useEffect(() => {
+    function handlePopState() {
+      goToLanding()
+    }
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [])
+
   // ── Navigation helpers ─────────────────────────────────────────────────────
   function goToLanding() {
     setPage('landing')
@@ -34,6 +44,8 @@ export default function App() {
     setSelectedArtist(artist)
     setArtistContext(null)
     setPage('conversation')
+    // Push a history entry so the browser back button has somewhere to go
+    window.history.pushState({ page: 'conversation' }, '')
   }
 
   function handleArtistContext(ctx: ArtistContext) {

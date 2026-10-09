@@ -27,6 +27,30 @@ export interface DataSource {
   detail?: string
 }
 
+// ── Analysis sections ─────────────────────────────────────────────────────────
+export type SectionId =
+  | 'audience_geography'
+  | 'streaming_performance'
+  | 'radio_press'
+  | 'collaborators'
+  | 'next_steps'
+  | 'revenue_royalties'
+
+export interface SectionCard {
+  id: SectionId
+  icon: string
+  title: string
+  description: string
+  proOnly: boolean
+}
+
+export type SectionEvent =
+  | { type: 'section_start'; section: SectionId }
+  | { type: 'token'; text: string }
+  | { type: 'section_done'; section: SectionId }
+  | { type: 'all_done' }
+  | { type: 'error'; text: string }
+
 // ── Report builder panel ──────────────────────────────────────────────────────
 export type ReportSectionStatus = 'done' | 'building' | 'pending' | 'locked'
 

@@ -26,6 +26,44 @@ log = logging.getLogger(__name__)
 
 _VALID_SECTIONS = frozenset(SECTION_PROMPTS.keys())
 
+# Hold references to background enrichment tasks so they aren't garbage-collected
+# before they complete (asyncio only keeps weak references to tasks).
+_background_tasks: set = set()
+
+
+async def _enrich_session_in_background(session_id: str, artist_name: str) -> None:
+    """Run Gemini enrichment and merge results into the session when complete.
+
+    Fire-and-forget: launched from the snapshot route so the snapshot can return
+    immediately from Chartmetric data. By the time the user selects sections or
+    asks a chat question, this has usually completed and updated the session.
+    No timeout here — the task runs to completion in the background.
+    """
+    try:
+        artist_web, industry_research = await asyncio.gather(
+            search_artist_web(artist_name),
+            search_industry_research("independent artist growth streaming"),
+        )
+        updated = session_store.update_session(
+            session_id,
+            artist_web=artist_web,
+            industry_research=industry_research,
+        )
+        _aw = artist_web or {}
+        _ir = industry_research or {}
+        log.info(
+            "GEMINI BACKGROUND done session_id=%s artist=%r updated=%s | artist_web summary_len=%d sources=%d | industry_research summary_len=%d sources=%d",
+            session_id,
+            artist_name,
+            updated,
+            len(_aw.get("summary", "")),
+            len(_aw.get("sources", [])),
+            len(_ir.get("summary", "")),
+            len(_ir.get("sources", [])),
+        )
+    except Exception:
+        log.exception("GEMINI BACKGROUND failed session_id=%s", session_id)
+
 # Topic mapped to each section for per-section industry research
 SECTION_RESEARCH_TOPICS: dict[str, str] = {
     "audience_geography":    "music audience geography diaspora listeners",
@@ -114,37 +152,25 @@ async def _snapshot_stream(cm_id: int):
         if isinstance(meta, dict):
             artist_name = meta.get("name", artist_name)
 
-        yield f"data: {json.dumps({'type': 'status', 'text': 'Enriching with web intelligence...'})}\n\n"
-
         summary = chartmetric.summarize_for_ai(raw)
 
-        # Fetch Gemini enrichment concurrently — non-blocking, failures return {}
-        artist_web, industry_research = await asyncio.gather(
-            search_artist_web(artist_name),
-            search_industry_research("independent artist growth streaming"),
-        )
-
-        # Store everything server-side; Gemini data available for section calls
+        # Save the session immediately with empty Gemini fields so sections/chat
+        # have something to read even before enrichment completes.
         session_store.save_session(
             session_id,
             artist_name,
             summary,
-            artist_web=artist_web,
-            industry_research=industry_research,
+            artist_web={},
+            industry_research={},
         )
 
-        # ── DEBUG: confirm what was stored in the session (temporary) ─────────
-        _aw = artist_web or {}
-        _ir = industry_research or {}
-        log.info(
-            "SESSION DEBUG save session_id=%s artist=%r | artist_web summary_len=%d sources=%d | industry_research summary_len=%d sources=%d",
-            session_id,
-            artist_name,
-            len(_aw.get("summary", "")),
-            len(_aw.get("sources", [])),
-            len(_ir.get("summary", "")),
-            len(_ir.get("sources", [])),
+        # Fire Gemini enrichment as a background task — does NOT block the snapshot.
+        # It updates the session in place when it completes (usually within ~10s).
+        task = asyncio.create_task(
+            _enrich_session_in_background(session_id, artist_name)
         )
+        _background_tasks.add(task)
+        task.add_done_callback(_background_tasks.discard)
 
         try:
             await audit_log.record(artist_name=artist_name, cm_id=cm_id, raw=raw, summary=summary)

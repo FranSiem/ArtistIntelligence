@@ -66,6 +66,28 @@ def save_session(session_id: str, artist_name: str, summary: str, **extra) -> No
     _store[session_id] = payload
 
 
+def update_session(session_id: str, **fields) -> bool:
+    """Merge fields into an existing session without overwriting other keys.
+
+    Used by background tasks (e.g. Gemini enrichment) to add data to a session
+    that was already saved. Returns True if the session existed and was updated,
+    False if the session was not found. Preserves the existing TTL window by
+    re-saving with the standard TTL.
+    """
+    existing = get_session(session_id)
+    if existing is None:
+        return False
+    existing.update(fields)
+    if config.REDIS_URL:
+        try:
+            _redis().setex(f"session:{session_id}", _TTL, json.dumps(existing))
+            return True
+        except Exception:
+            log.exception("Redis update_session failed — falling back to memory")
+    _store[session_id] = existing
+    return True
+
+
 def get_session(session_id: str) -> dict | None:
     """Return the full session payload, or None if not found."""
     if config.REDIS_URL:
